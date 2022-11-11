@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QSpinBox, QMessageBox
 )
 
-VERSION = "1.5"
+VERSION = "1.6"
 from bioinformatik import Markierung, Sequenz
 from widgets import SequenzenScene
 from pyside6 import NeueSequenzDialog
