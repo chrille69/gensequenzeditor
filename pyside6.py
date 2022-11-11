@@ -417,7 +417,7 @@ class MarkierungenVerwaltenDialog(QDialog):
         self._vboxframe.addWidget(MarkierungWidget(self._frame, m, self._markierungEntfernen))
 
     def _markierungEntfernen(self, mw):
-        self._markierungen.remove(mw.markierung)
+        self._markierungen.remove(mw._markierung)
         mw.setParent(None)
 
 
