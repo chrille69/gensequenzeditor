@@ -3,7 +3,6 @@ from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
 
 from PySide6.QtWidgets import QGraphicsScene
-from dialoge import BaseDialog, SequenzDialog, LinealDialog, MarkierungenVerwaltenDialog
 from pyside6 import basenlaenge, sequenznamewidth, MarkierungItem, SequenzItem, LinealItem
 
 log = logging.getLogger(__name__)
@@ -92,8 +91,9 @@ class SequenzenScene(QGraphicsScene):
         self._sequenzen.remove(sequenz)
         self.allesNeuZeichnen()
 
-    def updateMarkierungen(self, markierungen):
-        self._markierungen = markierungen
+    def updateMarkierungen(self):
+        for seq in self._sequenzen:
+            seq.checkMarkierungen(self._markierungen)
         self.allesNeuZeichnen()
     
     def allesNeuZeichnen(self):

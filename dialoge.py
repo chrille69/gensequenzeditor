@@ -1,5 +1,6 @@
 import random
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (QColorDialog, QDialog, 
     QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
     QSpinBox, QComboBox, QLineEdit, QPlainTextEdit, QWidget,
@@ -14,8 +15,8 @@ class BaseDialog(QDialog):
         super().__init__(parent)
         self.nonebasetext = '- keine -'
         self._base = base
-        self._markierungen = parent.markierungen
-        self._auswahltexte = [self.nonebasetext]+[m.beschreibung() for m in parent.markierungen]
+        self._markierungen = parent.sequenzscene().markierungen()
+        self._auswahltexte = [self.nonebasetext]+[m.beschreibung() for m in self._markierungen]
         vbox = QVBoxLayout(self)
         self.setLayout(vbox)
         gb_leerbasen = QGroupBox('Leerbasen einfügen',self)
@@ -225,6 +226,9 @@ class NeueSequenzDialog(QDialog):
 
 
 class MarkierungenVerwaltenDialog(QDialog):
+
+    markierungenchanged = Signal()
+
     def __init__(self, markierungen):
         super().__init__()
         self._markierungen = markierungen
@@ -249,10 +253,12 @@ class MarkierungenVerwaltenDialog(QDialog):
         m = Markierung(f'Unbenannt{farbe}',farbe)
         self._markierungen.append(m)
         self._vboxframe.addWidget(MarkierungWidget(self._frame, m, self._markierungEntfernen))
+        self.markierungenchanged.emit()
 
     def _markierungEntfernen(self, mw):
         self._markierungen.remove(mw._markierung)
         mw.setParent(None)
+        self.markierungenchanged.emit()
 
 
 

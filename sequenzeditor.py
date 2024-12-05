@@ -2,7 +2,7 @@ import sys
 import logging
 import json
 
-from PySide6.QtCore import QSize, QRectF, QByteArray, Signal, Qt
+from PySide6.QtCore import QSize, QRectF, QByteArray, Qt
 from PySide6.QtGui import QColor, QAction, QImage, QPainter, QPixmap, QIcon, QUndoStack, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QLabel, QMainWindow, QFileDialog, 
@@ -92,20 +92,13 @@ log = logging.getLogger(__name__)
 
 padding={'padx': 6, 'pady': 6}
 
-class Editor(QMainWindow):
+class SequenzEditor(QMainWindow):
     """
     Der Hauptdialog
 
     Gilt als Controller der ganzen Anwendung.
 
-    Enthält ein Array aus Sequenzen (self.sequenzen).
-
-    Alle Ereignisse erzeugen Dialoge, denen ein oder mehrere callback-
-    Funktionen übergeben werden, damit das Array von Sequenzen nur hier
-    geändert wird.
     """
-
-    neuesequenzadded = Signal
 
     def __init__(self, filenames):
         super().__init__()
@@ -155,16 +148,16 @@ class Editor(QMainWindow):
         sb_spaltenzahl.setValue(50)
         cb_verstecktanzeigen = QCheckBox('Versteckte Spalten anzeigen')
 
-        self.sequenzen = []
-        self.versteckt = []
-        self.markierungen = []
+        sequenzen = []
+        versteckt = []
+        markierungen = []
         if filenames:
             try:
-                self.sequenzen, self.markierungen, self.versteckt = self.importJSONFile(filenames[0])
+                sequenzen, markierungen, versteckt = self.importJSONFile(filenames[0])
             except Exception as e:
                 self.Fehlermeldung(str(e))
 
-        self._sequenzscene = SequenzenScene(self, self.sequenzen, self.markierungen, self.versteckt, cb_zeilenumbrechen.isChecked(), sb_spaltenzahl.value(), cb_verstecktanzeigen.isChecked())
+        self._sequenzscene = SequenzenScene(self, sequenzen, markierungen, versteckt, cb_zeilenumbrechen.isChecked(), sb_spaltenzahl.value(), cb_verstecktanzeigen.isChecked())
         self._grafik = QGraphicsView(self._sequenzscene)
         cb_zeilenumbrechen.stateChanged.connect(self._sequenzscene.umbruchTrigger)
         sb_spaltenzahl.valueChanged.connect(self._sequenzscene.spaltenzahlTrigger)
@@ -186,7 +179,8 @@ class Editor(QMainWindow):
         self.statusBar().addPermanentWidget(QLabel(f'Version {VERSION}'))
         self.setCentralWidget(self._grafik)
 
-
+    def sequenzscene(self):
+        return self._sequenzscene
 
     def closeEvent(self, event):
         if not self.ungespeichertFortfahren('Editor beenden'):
@@ -324,11 +318,10 @@ class Editor(QMainWindow):
         dlg.exec()
 
     def openMarkierungenVerwalten(self):
-        dlg = MarkierungenVerwaltenDialog(self.markierungen)
+        markierungen = self._sequenzscene.markierungen()
+        dlg = MarkierungenVerwaltenDialog(markierungen)
+        dlg.markierungenchanged.connect(self._sequenzscene.updateMarkierungen)
         dlg.exec()
-        for seq in self.sequenzen:
-            seq.checkMarkierungen(self.markierungen)
-        self._sequenzscene.updateMarkierungen(self.markierungen)
 
 
 class SequenzenEncoder(json.JSONEncoder):
@@ -367,6 +360,6 @@ if __name__ == "__main__":
     img = QImage()
     img.loadFromData(QByteArray.fromBase64(icon.encode('utf8')))
     app.setWindowIcon(QIcon(QPixmap(img)))
-    d = Editor(sys.argv[1:2])
+    d = SequenzEditor(sys.argv[1:2])
     d.show()
     sys.exit(app.exec())
