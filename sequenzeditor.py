@@ -320,7 +320,7 @@ class SequenzEditor(QMainWindow):
     def openMarkierungenVerwalten(self):
         markierungen = self._sequenzscene.markierungen()
         dlg = MarkierungenVerwaltenDialog(markierungen)
-        dlg.markierungenchanged.connect(self._sequenzscene.updateMarkierungen)
+        dlg.markierungenChanged.connect(self._sequenzscene.updateMarkierungen)
         dlg.exec()
 
 

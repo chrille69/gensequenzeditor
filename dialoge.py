@@ -227,7 +227,7 @@ class NeueSequenzDialog(QDialog):
 
 class MarkierungenVerwaltenDialog(QDialog):
 
-    markierungenchanged = Signal()
+    markierungenChanged = Signal()
 
     def __init__(self, markierungen):
         super().__init__()
@@ -247,22 +247,28 @@ class MarkierungenVerwaltenDialog(QDialog):
         for markierung in self._markierungen:
             mw = MarkierungWidget(self._frame, markierung, self._markierungEntfernen)
             self._vboxframe.addWidget(mw)
+            mw.markierungenChanged.connect(self.markierungenChanged.emit)
 
     def _markierungAnhaengen(self):
         farbe = "#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)])
         m = Markierung(f'Unbenannt{farbe}',farbe)
         self._markierungen.append(m)
-        self._vboxframe.addWidget(MarkierungWidget(self._frame, m, self._markierungEntfernen))
-        self.markierungenchanged.emit()
+        mw = MarkierungWidget(self._frame, m, self._markierungEntfernen)
+        mw.markierungenChanged.connect(self.markierungenChanged.emit)
+        self._vboxframe.addWidget(mw)
+        self.markierungenChanged.emit()
 
     def _markierungEntfernen(self, mw):
         self._markierungen.remove(mw._markierung)
         mw.setParent(None)
-        self.markierungenchanged.emit()
+        self.markierungenChanged.emit()
 
 
 
 class MarkierungWidget(QWidget):
+
+    markierungenChanged = Signal()
+
     def __init__(self, parent, markierung, entfernecallback):
         super().__init__(parent)
         self._markierung = markierung
@@ -284,12 +290,14 @@ class MarkierungWidget(QWidget):
 
     def _beschreibungAktualisieren(self, *args):
         self._markierung.setBeschreibung(self._le_beschreibung.text())
+        self.markierungenChanged.emit()
 
     def _farbauswahl(self):
         farbe = QColorDialog.getColor(self._markierung.farbe())
         if farbe:
             self._markierung.setFarbe(farbe.name())
             self._farbchooserbutton.setStyleSheet(f'background-color:{farbe.name()};')
+        self.markierungenChanged.emit()
 
     def _markierungEntfernen(self):
         self._entfernecallback(self)
