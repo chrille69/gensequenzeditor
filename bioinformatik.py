@@ -39,21 +39,21 @@ class Sequenz(QObject):
     def insertBasenString(self, pos, text):
         pattern = re.compile(r'\s+')
         text = re.sub(pattern, '', text).upper()
+        basenneu = self._basen.copy()
         for char in text:
-            self._basen.insert(pos, Base(self, char))
-        self.basenchanged.emit(self)
+            basenneu.insert(pos, Base(self, char))
+        return basenneu
 
     def insertLeer(self, pos, anzahl):
         leere = []
         for _ in range(anzahl):
             leere.append(Base(self, _char='~'))
-        self._basen = self._basen[:pos]+leere+self._basen[pos:]
-        self.basenchanged.emit(self)
+        return self._basen[:pos]+leere+self._basen[pos:]
 
-    def entferneBasen(self, startbase, anzahl):
-        i = self._basen.index(startbase)
-        self._basen[i:i+anzahl] = []
-        self.basenchanged.emit(self)
+    def entferneBasen(self, index, anzahl):
+        basenneu = self._basen.copy()
+        basenneu[index:index+anzahl] = []
+        return basenneu
 
     def inAminosaeure(self):
         neueBasen = []
@@ -61,7 +61,10 @@ class Sequenz(QObject):
             neueBasen.append(base)
             neueBasen.append(Base(self))
             neueBasen.append(Base(self))
-        self._basen = neueBasen
+        return neueBasen
+
+    def setBasen(self, basen):
+        self._basen = basen
         self.basenchanged.emit(self)
 
     def basen(self):

@@ -1,412 +1,289 @@
-import tkinter as tk
-import tkinter.ttk as ttk
-from tkinter.colorchooser import askcolor
-from typing import Callable
 import random
 
-from bioinformatik import Markierung, Sequenz, Base
+from PySide6.QtWidgets import (QColorDialog, QDialog, 
+    QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
+    QSpinBox, QComboBox, QLineEdit, QPlainTextEdit, QWidget,
+)
+
+from bioinformatik import Markierung, Base
+from commands import RemoveSequenzCommand, RenameSequenzCommand, AminosaeureSequenzCommand, InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand
 
 
-paddings = { 'padx': 5, 'pady': 5 }
-
-class BaseDialog(tk.Toplevel):
-    "Dialog, um Änderungen an einer oder mehreren Basen vornehmen zu können"
-
-    def __init__(self, parent: tk.Widget, highlightobjekt, markierungen,
-            leereinfuegencallback: Callable,
-            entfernencallback: Callable,
-            markierencallback: Callable):
+class BaseDialog(QDialog):
+    def __init__(self, parent, base: Base):
         super().__init__(parent)
+        self.nonebasetext = '- keine -'
+        self._base = base
+        self._markierungen = parent.markierungen
+        self._auswahltexte = [self.nonebasetext]+[m.beschreibung() for m in parent.markierungen]
+        vbox = QVBoxLayout(self)
+        self.setLayout(vbox)
+        gb_leerbasen = QGroupBox('Leerbasen einfügen',self)
+        gb_markierbasen = QGroupBox('Basen markieren',self)
+        gb_entfernebasen = QGroupBox('Basen entfernen',self)
+        gb_insertbasen = QGroupBox('Basen einfügen',self)
+        nummerohne = base.getNummerInSequenzOhneLeer()
+        nummermit = base.getIndexInSequenz()+1
+        vbox.addWidget(QLabel(f'Base: {base.char()}'))
+        vbox.addWidget(QLabel(f'Basennummer mit Leerstellen: {nummermit}'))
+        vbox.addWidget(QLabel(f'Basennummer ohne Leerstellen: {nummerohne}'))
+        vbox.addWidget(gb_leerbasen)
+        vbox.addWidget(gb_markierbasen)
+        vbox.addWidget(gb_entfernebasen)
+        vbox.addWidget(gb_insertbasen)
 
-        highlightobjekt.boxRahmen('red')
-        self.parent = parent
-        self.highlightobjekt = highlightobjekt
-        self.base = highlightobjekt.getObjekt()
-        if type(self.base) != Base:
-            raise TypeError('Das Objekt in Leinwandobjekt muss vom Typ Base sein')
-        self.markierungen = markierungen
-        self.farbe = 'red'
-        self.leereinfuegencallback = leereinfuegencallback
-        self.entfernencallback = entfernencallback
-        self.markierencallback = markierencallback
-        self.auswahltexte = ['- keine -']+[m.beschreibung for m in markierungen]
+        hbox_leerbasen = QHBoxLayout()
+        gb_leerbasen.setLayout(hbox_leerbasen)
+        self._sb_leeranzahl = QSpinBox()
+        self._sb_leeranzahl.setRange(1,99999)
+        btn_leerbasen = QPushButton('Leerbasen')
+        hbox_leerbasen.addWidget(QLabel('Anzahl'))
+        hbox_leerbasen.addWidget(self._sb_leeranzahl)
+        hbox_leerbasen.addStretch()
+        hbox_leerbasen.addWidget(btn_leerbasen)
+        btn_leerbasen.clicked.connect(self.leerclick)
 
-        frame = ttk.Frame(self)
+        hbox_markierbasen = QHBoxLayout()
+        gb_markierbasen.setLayout(hbox_markierbasen)
+        self._sb_markieranzahl = QSpinBox()
+        self._sb_markieranzahl.setRange(1,99999)
+        self._cb_markierbasen = QComboBox()
+        self._cb_markierbasen.addItems(self._auswahltexte)
+        self._cb_markierbasen.setCurrentIndex(self._auswahltexte.index(self._base.markierung().beschreibung() if self._base.markierung() else self.nonebasetext))
+        hbox_markierbasen.addWidget(QLabel('Anzahl'))
+        hbox_markierbasen.addWidget(self._sb_markieranzahl)
+        hbox_markierbasen.addStretch()
+        hbox_markierbasen.addWidget(self._cb_markierbasen)
+        self._cb_markierbasen.currentIndexChanged.connect(self.markierselect)
 
-        leerframe = ttk.LabelFrame(frame, text='Leerbasen einfügen')
-        leerlabel = ttk.Label(leerframe, text='Anzahl ab hier')
-        self.leeranzahl = ConstrainedEntry(leerframe, width=4)
-        self.leeranzahl.insert(0, '1')
-        leerbutton = ttk.Button(leerframe, text='OK', command=self._leer)
-        leerlabel.pack(side=tk.LEFT, **paddings)
-        self.leeranzahl.pack(side=tk.LEFT, **paddings)
-        leerbutton.pack(side=tk.RIGHT, **paddings)
+        hbox_entfernebasen = QHBoxLayout()
+        gb_entfernebasen.setLayout(hbox_entfernebasen)
+        self._sb_entferneanzahl = QSpinBox()
+        self._sb_entferneanzahl.setRange(1,99999)
+        btn_entfernebasen = QPushButton('Entferne')
+        hbox_entfernebasen.addWidget(QLabel('Anzahl'))
+        hbox_entfernebasen.addWidget(self._sb_entferneanzahl)
+        hbox_entfernebasen.addStretch()
+        hbox_entfernebasen.addWidget(btn_entfernebasen)
+        btn_entfernebasen.clicked.connect(self.entferneclick)
 
-        markierungframe = ttk.LabelFrame(frame, text='Basen markieren')
-        markierungLabel = ttk.Label(markierungframe, text='Anzahl ab hier')
-        self.markiereAnzahl = ConstrainedEntry(markierungframe, width=4)
-        self.markiereAnzahl.insert(0,1)
-        self.markierungWahl = ttk.Combobox(markierungframe, values=self.auswahltexte)
-        self.markierungWahl.bind("<<ComboboxSelected>>", self._markiere)
-        markierungLabel.pack(side=tk.LEFT, **paddings)
-        self.markiereAnzahl.pack(side=tk.LEFT, **paddings)
-        self.markierungWahl.pack(side=tk.RIGHT, **paddings)
+        hbox_insertbasen = QHBoxLayout()
+        gb_insertbasen.setLayout(hbox_insertbasen)
+        self._le_inserttext = QLineEdit()
+        btn_insertbasen = QPushButton('Einfügen')
+        hbox_insertbasen.addWidget(QLabel('Sequenztext'))
+        hbox_insertbasen.addWidget(self._le_inserttext)
+        hbox_insertbasen.addStretch()
+        hbox_insertbasen.addWidget(btn_insertbasen)
+        btn_insertbasen.clicked.connect(self.insertclick)
 
-        deleteframe = ttk.LabelFrame(frame, text='Basen entfernen')
-        deletelabel = ttk.Label(deleteframe, text='Anzahl ab hier')
-        self.deleteanzahl = ConstrainedEntry(deleteframe, width=4)
-        self.deleteanzahl.insert(0, '1')
-        deletebutton = ttk.Button(deleteframe, text='Basen entfernen', command=self._entfernen)
-        deletelabel.pack(side=tk.LEFT, **paddings)
-        self.deleteanzahl.pack(side=tk.LEFT, **paddings)
-        deletebutton.pack( side=tk.RIGHT, **paddings)
+    def leerclick(self):
+        sequenz = self._base.sequenz()
+        baseidx = self._base.getIndexInSequenz()
+        self.parent().undoStack.push(InsertLeerBaseCommand(sequenz, baseidx, self._sb_leeranzahl.value()))
+        self.close()
 
-        leerframe.pack(fill=tk.BOTH, **paddings)
-        markierungframe.pack(fill=tk.BOTH, **paddings)
-        deleteframe.pack(fill=tk.BOTH, **paddings)
-        frame.pack(fill=tk.BOTH)
-
-        self.transient(parent)
-        self.title("Basen bearbeiten")
-        self.grab_set()
-        self.resizable(False,False)
-        
-        self.update()
-        h = self.winfo_height()
-        w = self.winfo_width()
-        hp = parent.winfo_height()
-        wp = parent.winfo_width()
-        x0 = parent.winfo_rootx()
-        y0 = parent.winfo_rooty()
-        x = int(x0+wp/2-w/2)
-        y = int(y0+hp/2-h/2)
-        self.geometry(f'+{x}+{y}')
-        self.protocol("WM_DELETE_WINDOW", self._fertig)
-
-    def _leer(self):
-        self.highlightobjekt = None
-        self.leereinfuegencallback(self.base, int(self.leeranzahl.get()))
-        self._fertig()
-
-    def _markiere(self, _):
-        self.highlightobjekt = None
-        text = self.markierungWahl.get()
+    def markierselect(self):
+        text = self._cb_markierbasen.currentText()
         markierung = None
-        for m in self.markierungen:
-            if text == m.beschreibung:
+        for m in self._markierungen:
+            if text == m.beschreibung():
                 markierung = m
                 break
-        self.markierencallback(self.base, markierung, int(self.markiereAnzahl.get()))
-        self._fertig()
+        sequenz = self._base.sequenz()
+        baseidx = self._base.getIndexInSequenz()
+        sequenz.markiereBasen(baseidx,self._sb_markieranzahl.value(), markierung)
+        self.close()
 
-    def _entfernen(self):
-        self.highlightobjekt = None
-        self.entfernencallback(self.base, int(self.deleteanzahl.get()))
-        self._fertig()
+    def entferneclick(self):
+        anzahl = self._sb_entferneanzahl.value()
+        if anzahl > 0:
+            sequenz = self._base.sequenz()
+            baseidx = self._base.getIndexInSequenz()
+            self.parent().undoStack.push(EntferneBaseCommand(sequenz, baseidx, anzahl))
+        self.close()
 
-    def _fertig(self) -> None:
-        if self.highlightobjekt:
-            self.highlightobjekt.boxRahmen()
-        return super().destroy()
+    def insertclick(self):
+        seqtext = self._le_inserttext.text()
+        sequenz = self._base.sequenz()
+        baseidx = self._base.getIndexInSequenz()
+        self.parent().undoStack.push(InsertBaseCommand(sequenz, baseidx, seqtext))
+        self.close()
 
-class SequenzDialog(tk.Toplevel):
-    """Dialog, um Änderungen an einer Sequenz vornehmen zu können"""
 
-    def __init__(self, parent: tk.Widget, sequenz: Sequenz,
-            entfernencallback: Callable,
-            umbenennencallback: Callable,
-            aminosaeurecallback: Callable
-        ):
-        self.sequenz = sequenz
-        if type(self.sequenz) != Sequenz:
-            raise TypeError('Das Objekt in Leinwandobjekt muss vom Typ Sequenz sein')
-        self.parent = parent
-        self.entfernencallback = entfernencallback
-        self.umbenennencallback = umbenennencallback
-        self.aminosaeurecallback = aminosaeurecallback
-
+class SequenzDialog(QDialog):
+    def __init__(self, parent, sequenz):
         super().__init__(parent)
-        frame = ttk.Frame(self)
+        self._sequenz = sequenz
+        vbox = QVBoxLayout(self)
+        self.setLayout(vbox)
+        gb_umbenennen = QGroupBox('Sequenz umbenennen',self)
+        gb_animo = QGroupBox('Sequenz in Aminosäure umwandeln',self)
+        gb_entferne = QGroupBox('Sequenz entfernen',self)
+        vbox.addWidget(gb_umbenennen)
+        vbox.addWidget(gb_animo)
+        vbox.addWidget(gb_entferne)
 
-        renameframe = ttk.LabelFrame(frame, text='Sequenz umbennen')
-        self.renameentry = ttk.Entry(renameframe)
-        self.renameentry.insert('end', self.sequenz.name)
-        renamebutton = ttk.Button(renameframe, text='Sequenz umbennen', command=self._umbenennen)
-        self.renameentry.pack(side=tk.LEFT, **paddings)
-        renamebutton.pack(side=tk.RIGHT, **paddings)
+        hbox_umbenennen = QHBoxLayout()
+        gb_umbenennen.setLayout(hbox_umbenennen)
+        self._in_sequenzname = QLineEdit(sequenz.name())
+        btn_umbenennen = QPushButton('Umbenennen')
+        hbox_umbenennen.addWidget(self._in_sequenzname)
+        hbox_umbenennen.addWidget(btn_umbenennen)
+        btn_umbenennen.clicked.connect(self.umbenennenclick)
 
-        aminoframe = ttk.LabelFrame(frame, text='Sequenz in Aminosäure umwandeln')
-        aminobutton = ttk.Button(aminoframe, text='Sequenz Aminosäure', command=self._aminosaeure)
-        aminobutton.pack( side=tk.RIGHT, **paddings)
+        hbox_amino = QHBoxLayout()
+        gb_animo.setLayout(hbox_amino)
+        btn_amino = QPushButton('In Aminosäure')
+        hbox_amino.addStretch()
+        hbox_amino.addWidget(btn_amino)
+        btn_amino.clicked.connect(self.aminosaeure)
 
-        deleteframe = ttk.LabelFrame(frame, text='Sequenz entfernen')
-        deletebutton = ttk.Button(deleteframe, text='Sequenz entfernen', command=self._entfernen)
-        deletebutton.pack(side=tk.RIGHT, **paddings)
-
-        renameframe.pack( fill=tk.BOTH, **paddings)
-        aminoframe.pack(  fill=tk.BOTH, **paddings)
-        deleteframe.pack( fill=tk.BOTH, **paddings)
-        frame.pack(fill=tk.BOTH)
-
-        self.transient(parent)
-        self.title("Sequenz bearbeiten")
-        self.grab_set()
-        self.protocol("WM_DELETE_WINDOW", self.destroy)
-        self.resizable(False,False)
-
-        self.update()
-        h = self.winfo_height()
-        w = self.winfo_width()
-        hp = parent.winfo_height()
-        wp = parent.winfo_width()
-        x0 = parent.winfo_rootx()
-        y0 = parent.winfo_rooty()
-        x = int(x0+wp/2-w/2)
-        y = int(y0+hp/2-h/2)
-        self.geometry(f'+{x}+{y}')
+        hbox_entferne = QHBoxLayout()
+        gb_entferne.setLayout(hbox_entferne)
+        btn_entferne = QPushButton('Entfernen')
+        hbox_entferne.addStretch()
+        hbox_entferne.addWidget(btn_entferne)
+        btn_entferne.clicked.connect(self.entferne)
 
 
-    def _entfernen(self):
-        self.entfernencallback(self.sequenz)
-        self.destroy()
+    def umbenennenclick(self):
+        self.parent().undoStack.push(RenameSequenzCommand(self._sequenz, self._in_sequenzname.text()))
+        self.close()
 
-    def _umbenennen(self):
-        self.umbenennencallback(self.sequenz, self.renameentry.get())
-        self.destroy()
+    def aminosaeure(self):
+        self.parent().undoStack.push(AminosaeureSequenzCommand(self._sequenz))
+        self.close()
 
-    def _aminosaeure(self):
-        self.aminosaeurecallback(self.sequenz)
-        self.destroy()
+    def entferne(self):
+        self.parent().undoStack.push(RemoveSequenzCommand(self.parent(), self._sequenz))
+        self.close()
 
 
-class LinealDialog(tk.Toplevel):
-    "Dieser Dialog wird geöffnet, wenn man auf das Lineal klickt"
+class LinealDialog(QDialog):
+    def __init__(self, parent, column):
+        super().__init__()
+        self.sequenzscene = parent._sequenzscene
+        self.column = column
+        vbox = QVBoxLayout(self)
+        self.setLayout(vbox)
+        gb_verstecken = QGroupBox('Spalten verstecken',self)
+        gb_enttarnen = QGroupBox('Spalten enttarnen',self)
+        vbox.addWidget(gb_verstecken)
+        vbox.addWidget(gb_enttarnen)
 
-    def __init__(self, parent: tk.Widget, highlightobjekt, versteckencallback: Callable, enttarnencallback: Callable):
+        hbox_verstecken = QHBoxLayout()
+        gb_verstecken.setLayout(hbox_verstecken)
+        self._sb_verstecken = QSpinBox()
+        self._sb_verstecken.setRange(1,99999)
+        btn_verstecken = QPushButton('Verstecken')
+        hbox_verstecken.addWidget(QLabel('Anzahl ab hier'))
+        hbox_verstecken.addWidget(self._sb_verstecken)
+        hbox_verstecken.addStretch()
+        hbox_verstecken.addWidget(btn_verstecken)
+        btn_verstecken.clicked.connect(self.verstecken)
+
+        hbox_enttarnen = QHBoxLayout()
+        gb_enttarnen.setLayout(hbox_enttarnen)
+        self._sb_enttarnen = QSpinBox()
+        self._sb_enttarnen.setRange(1,99999)
+        btn_enttarnen = QPushButton('Enttarnen')
+        hbox_enttarnen.addWidget(QLabel('Anzahl ab hier'))
+        hbox_enttarnen.addWidget(self._sb_enttarnen)
+        hbox_enttarnen.addStretch()
+        hbox_enttarnen.addWidget(btn_enttarnen)
+        btn_enttarnen.clicked.connect(self.enttarnen)
+
+    def verstecken(self):
+        self.sequenzscene.addVersteckt(range(self.column, self.column+self._sb_verstecken.value()))
+        self.close()
+
+    def enttarnen(self):
+        self.sequenzscene.removeVersteckt(range(self.column, self.column+self._sb_enttarnen.value()))
+        self.close()
+
+
+class NeueSequenzDialog(QDialog):
+    def __init__(self, parent, neuesequenzcall):
         super().__init__(parent)
+        self._neuesequenzcall = neuesequenzcall
+        vbox = QVBoxLayout(self)
+        self.setLayout(vbox)
+        self._le_name = QLineEdit()
+        self._te_sequenztext = QPlainTextEdit()
+        self._btn_ok = QPushButton('OK')
+        self._btn_ok.clicked.connect(self.fertig)
+        vbox.addWidget(QLabel('Name:'))
+        vbox.addWidget(self._le_name)
+        vbox.addWidget(QLabel('Sequenztext:'))
+        vbox.addWidget(self._te_sequenztext)
+        vbox.addWidget(self._btn_ok)
 
-        highlightobjekt.boxRahmen('red')
-        self.hightlightobjekt = highlightobjekt
-        self.spalte = highlightobjekt.getObjekt()
-        if type(self.spalte) != int:
-            raise TypeError('Das Objekt in Leinwandobjekt muss vom Typ int sein')
-        self.parent = parent
-        self.anzahl = 1
-        self.versteckencallback = versteckencallback
-        self.enttarnencallback = enttarnencallback
-
-        frame = ttk.Frame(self)
-
-        hideframe = ttk.LabelFrame(frame, text='Spalten verstecken')
-        hidelabel = ttk.Label(hideframe, text='Anzahl ab hier')
-        self.hideentry = ConstrainedEntry(hideframe, width=4)
-        self.hideentry.insert('end', self.anzahl)
-        hidebutton = ttk.Button(hideframe, text='Spalten verstecken', command=self._verstecken)
-        hidelabel.pack(side=tk.LEFT, **paddings)
-        self.hideentry.pack(side=tk.LEFT, **paddings)
-        hidebutton.pack(side=tk.RIGHT, **paddings)
-
-        enttarnframe = ttk.LabelFrame(frame, text='Versteckte Spalten anzeigen')
-        enttarnlabel = ttk.Label(enttarnframe, text='Anzahl ab hier')
-        self.enttarnentry = ConstrainedEntry(enttarnframe, width=4)
-        self.enttarnentry.insert('end', self.anzahl)
-        enttarnbutton = ttk.Button(enttarnframe, text='Spalten enttarnen', command=self._enttarnen)
-        enttarnlabel.pack(side=tk.LEFT, **paddings)
-        self.enttarnentry.pack(side=tk.LEFT, **paddings)
-        enttarnbutton.pack(side=tk.RIGHT, **paddings)
-
-        hideframe.pack(fill=tk.BOTH, **paddings)
-        enttarnframe.pack(fill=tk.BOTH, **paddings)
-        frame.pack(fill=tk.BOTH)
-
-        self.transient(parent)
-        self.title("Linealfunktionen")
-        self.grab_set()
-        self.protocol("WM_DELETE_WINDOW", self._fertig)
-        self.resizable(False,False)
-
-        self.update()
-        h = self.winfo_height()
-        w = self.winfo_width()
-        hp = parent.winfo_height()
-        wp = parent.winfo_width()
-        x0 = parent.winfo_rootx()
-        y0 = parent.winfo_rooty()
-        x = int(x0+wp/2-w/2)
-        y = int(y0+hp/2-h/2)
-        self.geometry(f'+{x}+{y}')
+    def fertig(self):
+        self._neuesequenzcall(self._le_name.text(), self._te_sequenztext.document().toRawText())
+        self.close()
 
 
-    def _verstecken(self):
-        # linealtickobjekt muss vernichtet werden, damit die garbage collection
-        # das canvas-Element zerstören kann.
-        self.hightlightobjekt = None
-        self.versteckencallback(self.spalte, int(self.hideentry.get()))
-        self._fertig()
+class MarkierungenVerwaltenDialog(QDialog):
+    def __init__(self, markierungen):
+        super().__init__()
+        self._markierungen = markierungen
+        vbox = QVBoxLayout()
+        self.setLayout(vbox)
+        btn_plus = QPushButton('+')
+        btn_plus.clicked.connect(self._markierungAnhaengen)
+        btn_plus.setFixedWidth(40)
+        self._frame = QWidget()
+        self._vboxframe = QVBoxLayout()
+        self._frame.setLayout(self._vboxframe)
 
-    def _enttarnen(self):
-        self.hightlightobjekt = None
-        self.enttarnencallback(self.spalte, int(self.enttarnentry.get()))
-        self._fertig()
-
-    def _fertig(self) -> None:
-        if self.hightlightobjekt:
-            self.hightlightobjekt.boxRahmen('')
-        return super().destroy()
-
-
-class NeueSequenzDialog(tk.Toplevel):
-    """Ein Dialog um neue Sequenzen als Text zu importieren"""
-
-    def __init__(self, parent: tk.Widget, fertigcallback: Callable):
-        self.parent = parent
-        self.fertigcallback = fertigcallback
-
-        super().__init__(parent)
-        frame = ttk.Frame(self)
-        frame.pack(fill=tk.BOTH)
-
-        nameframe = ttk.LabelFrame(frame, text='Name')
-        nameframe.pack(side=tk.TOP, anchor=tk.W, **paddings)
-        self.sequenzname = ttk.Entry(nameframe)
-        self.sequenzname.pack(side=tk.TOP, fill=tk.X, **paddings)
-
-        textframe = ttk.LabelFrame(frame, text='Sequenztext')
-        textframe.pack(side=tk.TOP, anchor=tk.W, **paddings, ipadx=5, ipady=5)
-        f = ttk.Frame(textframe)
-        f.pack(fill=tk.BOTH, **paddings)
-        self.sequenztext = tk.Text(f)
-        vsb = ttk.Scrollbar(f, orient='vertical', command=self.sequenztext.yview)
-        self.sequenztext.configure(yscrollcommand=vsb.set)
-        self.sequenztext.pack(side=tk.LEFT)
-        vsb.pack(side=tk.LEFT, fill=tk.Y)
-
-        button = ttk.Button(frame, text='Fertig!', command=self._fertig)
-        button.pack(side=tk.TOP, **paddings)
-
-        self.transient(parent)
-        self.title("Neue Sequenz hinzufügen")
-        self.grab_set()
-        self.protocol("WM_DELETE_WINDOW", self.destroy)
-        self.resizable(False,False)
-
-        self.update()
-        h = self.winfo_height()
-        w = self.winfo_width()
-        hp = parent.winfo_height()
-        wp = parent.winfo_width()
-        x0 = parent.winfo_rootx()
-        y0 = parent.winfo_rooty()
-        x = int(x0+wp/2-w/2)
-        y = int(y0+hp/2-h/2)
-        self.geometry(f'+{x}+{y}')
-
-    def _fertig(self):
-        self.fertigcallback(self.sequenzname.get(), self.sequenztext.get('1.0', 'end'))
-        self.destroy()
-
-
-class MarkierungenVerwaltenDialog(tk.Toplevel):
-    def __init__(self, parent: tk.Widget, markierungen) -> None:
-        super().__init__(parent)
-        self.markierungen = markierungen
-        self.frame = ttk.Frame(self)
-        self.frame.pack(fill=tk.BOTH)
-        self.frameinner = ttk.Frame(self.frame)
-        self.frameinner.pack(fill=tk.BOTH)
-        self._markierungenZeichnen()
-
-        self.title("Markierungen verwalten")
-        self.minsize(300,30)
-        self.grab_set()
-        self.protocol("WM_DELETE_WINDOW", self.destroy)
-        self.resizable(False,False)
-
-        self.update()
-        h = self.winfo_height()
-        w = self.winfo_width()
-        hp = parent.winfo_height()
-        wp = parent.winfo_width()
-        x0 = parent.winfo_rootx()
-        y0 = parent.winfo_rooty()
-        x = int(x0+wp/2-w/2)
-        y = int(y0+hp/2-h/2)
-        self.geometry(f'+{x}+{y}')
-    
-    def _markierungenZeichnen(self):
-        self.frameinner.destroy()
-        self.frameinner = ttk.Frame(self.frame)
-        self.frameinner.pack(fill=tk.BOTH, **paddings)
-        plusbutton = ttk.Button(self.frameinner, text='+', width=1, command=self._markierungAnhaengen)
-        plusbutton.grid(column=0, row=0, sticky=tk.W, pady=5, padx=5)
-        ttk.Label(self.frameinner, text='Keine gleichen Namen verwenden!', anchor=tk.W).grid(column=1, row=0, sticky=tk.W, **paddings)
-        n=1
-        for markierung in self.markierungen:
-            mw = MarkierungWidget(self.frameinner, markierung, self._markierungEntfernen)
-            mw.grid(column=0, row=n, sticky=(tk.W,tk.E), columnspan=2)
-            n += 1
+        vbox.addWidget(QLabel('Keine gleichen Namen verwenden!'))
+        vbox.addWidget(btn_plus)
+        vbox.addWidget(self._frame)
+        for markierung in self._markierungen:
+            mw = MarkierungWidget(self._frame, markierung, self._markierungEntfernen)
+            self._vboxframe.addWidget(mw)
 
     def _markierungAnhaengen(self):
-        farbe = ["#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)])]
-        self.markierungen.append(Markierung(f'Unbenannt{random.randint(1,99999):0d}',farbe))
-        self._markierungenZeichnen()
+        farbe = "#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)])
+        m = Markierung(f'Unbenannt{farbe}',farbe)
+        self._markierungen.append(m)
+        self._vboxframe.addWidget(MarkierungWidget(self._frame, m, self._markierungEntfernen))
 
-    def _markierungEntfernen(self, markierung):
-        self.markierungen.remove(markierung)
+    def _markierungEntfernen(self, mw):
+        self._markierungen.remove(mw._markierung)
+        mw.setParent(None)
 
 
-class MarkierungWidget(ttk.Frame):
-    def __init__(self, parent, markierung, entfernecallback) -> None:
+
+class MarkierungWidget(QWidget):
+    def __init__(self, parent, markierung, entfernecallback):
         super().__init__(parent)
-        self.markierung = markierung
-        self.entfernecallback = entfernecallback
-        self.beschreibung = tk.StringVar(self,value=markierung.beschreibung)
-        self.beschreibung.trace('w', self._beschreibungAktualisieren )
+        self._markierung = markierung
+        self._entfernecallback = entfernecallback
+        hbox = QHBoxLayout()
+        self.setLayout(hbox)
+        self._le_beschreibung = QLineEdit(markierung.beschreibung())
+        self._le_beschreibung.textChanged.connect(self._beschreibungAktualisieren)
+        hbox.addWidget(self._le_beschreibung)
 
-        bezeichnungEntry = ttk.Entry(self, textvariable=self.beschreibung)
-        farbchooserbutton = ttk.Button(self, text='Farbe wählen', command=self._farbauswahl)
-        self.farbquadrat = tk.Frame(self, width=25, height=25, bg=self.markierung.farbe)
-        entfernebutton = ttk.Button(self, text='-', width=1, command=self._markierungEntfernen)
+        self._farbchooserbutton = QPushButton('Farbe wählen')
+        self._farbchooserbutton.clicked.connect(self._farbauswahl)
+        self._farbchooserbutton.setStyleSheet(f'background-color:{self._markierung.farbe()}; padding: 5')
+        hbox.addWidget(self._farbchooserbutton)
 
-        bezeichnungEntry.pack( side=tk.LEFT, fill=tk.Y, **paddings)
-        farbchooserbutton.pack(side=tk.LEFT, **paddings)
-        self.farbquadrat.pack( side=tk.LEFT, fill=tk.Y, **paddings)
-        entfernebutton.pack(   side=tk.LEFT, fill=tk.Y, **paddings)
+        entfernebutton = QPushButton('-')
+        entfernebutton.clicked.connect(self._markierungEntfernen)
+        hbox.addWidget(entfernebutton)
 
     def _beschreibungAktualisieren(self, *args):
-        self.markierung.beschreibung=self.beschreibung.get()
+        self._markierung.setBeschreibung(self._le_beschreibung.text())
 
     def _farbauswahl(self):
-        farbe = askcolor(self.markierung.farbe)[1]
+        farbe = QColorDialog.getColor(self._markierung.farbe())
         if farbe:
-            self.markierung.farbe = farbe
-            self.farbquadrat.configure(background=farbe)
+            self._markierung.setFarbe(farbe.name())
+            self._farbchooserbutton.setStyleSheet(f'background-color:{farbe.name()};')
 
     def _markierungEntfernen(self):
-        self.entfernecallback(self.markierung)
-        self.destroy()
-
-class ConstrainedEntry(ttk.Entry):
-    "Kleine Hilfsklasse, um nur numerische Eingaben zuzulassen"
-
-    def __init__(self, *args, **kwargs):
-        ttk.Entry.__init__(self, *args, **kwargs)
-
-        vcmd = (self.register(self._validiere),"%P")
-        self.configure(validate="key", validatecommand=vcmd)
-
-    def _verbiete(self):
-        self.bell()
-
-    def _validiere(self, new_value):
-        try:
-            if new_value.strip() == "": return True
-            value = int(new_value)
-            if value < 0 or value > 9999999:
-                self._verbiete()
-                return False
-        except ValueError:
-            self._verbiete()
-            return False
-
-        return True
+        self._entfernecallback(self)

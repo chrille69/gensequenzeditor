@@ -2,18 +2,19 @@ import sys
 import logging
 import json
 
-from PySide6.QtCore import QSize, QRectF, QByteArray, Signal
-from PySide6.QtGui import QColor, QAction, QImage, QPainter, QPixmap, QIcon
+from PySide6.QtCore import QSize, QRectF, QByteArray, Signal, Qt
+from PySide6.QtGui import QColor, QAction, QImage, QPainter, QPixmap, QIcon, QUndoStack, QKeySequence
 from PySide6.QtWidgets import (
-    QApplication, QFrame, QLabel, QMainWindow, QFileDialog, 
-    QHBoxLayout, QVBoxLayout, QWidget, QGraphicsView, QCheckBox,
+    QApplication, QLabel, QMainWindow, QFileDialog, 
+    QGraphicsView, QCheckBox, QToolBar,
     QSpinBox, QMessageBox
 )
 
-VERSION = "1.6"
+VERSION = "1.7"
 from bioinformatik import Markierung, Sequenz
-from widgets import SequenzenScene
-from pyside6 import NeueSequenzDialog
+from sequenzenscene import SequenzenScene
+from dialoge import NeueSequenzDialog, BaseDialog, SequenzDialog, LinealDialog, MarkierungenVerwaltenDialog
+from commands import InsertSequenzCommand
 
 # Zum Erzeugen der exe:
 # pyinstaller.exe -F -i "oszli-icon.ico" -w sequenzeditor.py
@@ -109,13 +110,17 @@ class Editor(QMainWindow):
     def __init__(self, filenames):
         super().__init__()
         self._ungespeichert = False
+        self.undoStack = QUndoStack(self)
 
         neuAction = QAction('&Neu', self)
         neuAction.triggered.connect(self.fileNew)
+        neuAction.setShortcut(QKeySequence.New)
         oeffnenAction = QAction('&Öffnen', self)
         oeffnenAction.triggered.connect(self.fileOpen)
+        oeffnenAction.setShortcut(QKeySequence.Open)
         speichernAction = QAction('&Speichern', self)
         speichernAction.triggered.connect(self.fileSave)
+        speichernAction.setShortcut(QKeySequence.Save)
         fastaimportAction = QAction('&FASTA importieren', self)
         fastaimportAction.triggered.connect(self.importFasta)
         pngexportAction = QAction('&PNG exportieren', self)
@@ -127,6 +132,10 @@ class Editor(QMainWindow):
         neuesequenzAction.triggered.connect(self.neueSequenzDialog)
         markierungenAction = QAction('&Markierungen verwalten', self)
 
+        undoAction = self.undoStack.createUndoAction(self)
+        undoAction.setShortcut(QKeySequence.Undo)
+        redoAction = self.undoStack.createRedoAction(self)
+        undoAction.setShortcut(QKeySequence.Redo)
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&Datei')
@@ -137,48 +146,45 @@ class Editor(QMainWindow):
         fileMenu.addAction(pngexportAction)
         fileMenu.addSeparator()
         fileMenu.addActions([beendenAction])
-        editMenu.addActions([neuesequenzAction, markierungenAction])
+        editMenu.addActions([neuesequenzAction, markierungenAction, undoAction, redoAction])
 
-        box = QWidget()
-        vbox = QVBoxLayout()
-        box.setLayout(vbox)
-        toolframe = QFrame() # QDockWidget ?
-        vbox.addWidget(toolframe)
-        toollayout = QHBoxLayout()
-        toolframe.setLayout(toollayout)
+        cb_zeilenumbrechen = QCheckBox('Zeilen umbrechen')
+        cb_zeilenumbrechen.setChecked(True)
+        sb_spaltenzahl = QSpinBox()
+        sb_spaltenzahl.setRange(1,1000)
+        sb_spaltenzahl.setValue(50)
+        cb_verstecktanzeigen = QCheckBox('Versteckte Spalten anzeigen')
 
-        self._cb_zeilenumbrechen = QCheckBox('Zeilen umbrechen')
-        self._cb_zeilenumbrechen.setChecked(True)
-        self._sb_spaltenzahl = QSpinBox()
-        self._sb_spaltenzahl.setRange(1,1000)
-        self._sb_spaltenzahl.setValue(50)
-        self._cb_verstecktanzeigen = QCheckBox('Versteckte Spalten anzeigen')
-
-        sequenzen = []
-        versteckt = []
-        markierungen = []
+        self.sequenzen = []
+        self.versteckt = []
+        self.markierungen = []
         if filenames:
             try:
-                sequenzen, markierungen, versteckt = self.importJSONFile(filenames[0])
+                self.sequenzen, self.markierungen, self.versteckt = self.importJSONFile(filenames[0])
             except Exception as e:
                 self.Fehlermeldung(str(e))
 
-        self._sequenzscene = SequenzenScene(self, sequenzen, markierungen, versteckt, self._cb_zeilenumbrechen.isChecked(), self._sb_spaltenzahl.value(), self._cb_verstecktanzeigen.isChecked())
+        self._sequenzscene = SequenzenScene(self, self.sequenzen, self.markierungen, self.versteckt, cb_zeilenumbrechen.isChecked(), sb_spaltenzahl.value(), cb_verstecktanzeigen.isChecked())
         self._grafik = QGraphicsView(self._sequenzscene)
-        self._cb_zeilenumbrechen.stateChanged.connect(self._sequenzscene.umbruchTrigger)
-        self._sb_spaltenzahl.valueChanged.connect(self._sequenzscene.spaltenzahlTrigger)
-        self._cb_verstecktanzeigen.stateChanged.connect(self._sequenzscene.verstecktStateTrigger)
-        markierungenAction.triggered.connect(self._sequenzscene.markierungenTrigger)
+        cb_zeilenumbrechen.stateChanged.connect(self._sequenzscene.umbruchTrigger)
+        sb_spaltenzahl.valueChanged.connect(self._sequenzscene.spaltenzahlTrigger)
+        cb_verstecktanzeigen.stateChanged.connect(self._sequenzscene.verstecktStateTrigger)
+        markierungenAction.triggered.connect(self.openMarkierungenVerwalten)
         self._sequenzscene.painted.connect(self.paintedTrigger)
 
-        toollayout.addWidget(self._cb_zeilenumbrechen)
-        toollayout.addWidget(self._sb_spaltenzahl)
-        toollayout.addWidget(self._cb_verstecktanzeigen)
-        toollayout.addStretch()
+        tools = QToolBar()
+        self.addToolBar(Qt.TopToolBarArea, tools)
+        tools.addAction(undoAction)
+        tools.addAction(redoAction)
+        tools.addSeparator()
+        tools.addWidget(cb_zeilenumbrechen)
+        tools.addSeparator()
+        tools.addWidget(sb_spaltenzahl)
+        tools.addSeparator()
+        tools.addWidget(cb_verstecktanzeigen)
 
-        vbox.addWidget(self._grafik)
         self.statusBar().addPermanentWidget(QLabel(f'Version {VERSION}'))
-        self.setCentralWidget(box)
+        self.setCentralWidget(self._grafik)
 
 
 
@@ -192,7 +198,7 @@ class Editor(QMainWindow):
         if self._ungespeichert:
             mb = QMessageBox()
             ret = mb.critical(self,titel,"Es gibt ungesicherte Änderungen.\nWollen Sie wirklich fortfahren?", QMessageBox.Yes | QMessageBox.No)
-            if ret == mb.No:
+            if ret == QMessageBox.No:
                 return False
         self._ungespeichert = False
         return True
@@ -202,12 +208,7 @@ class Editor(QMainWindow):
         dlg.exec()
 
     def _neueSequenzDialogFertig(self, name, text):
-        self._sequenzscene.addSequenzen([self.neueSequenz(name, text)])
-
-    def neueSequenz(self, name: str, text: str):
-        seq = Sequenz(name)
-        seq.importBasenString(text)
-        return seq
+        self.undoStack.push(InsertSequenzCommand(self._sequenzscene, name, text))
 
     def importFasta(self):
         filename = QFileDialog.getOpenFileName(self, "Open Image")[0]
@@ -302,10 +303,32 @@ class Editor(QMainWindow):
     
         saving = img.save(filename)
 
+##########################################
+# Dialogcallbacks
+##########################################
+
     def Fehlermeldung(self, text):
         msgBox = QMessageBox()
         msgBox.warning(self, 'Fehler!', text)
 
+    def openBaseDialog(self, base):
+        dlg = BaseDialog(self, base)
+        dlg.exec()
+
+    def openSequenzDialog(self,sequenz):
+        dlg = SequenzDialog(self, sequenz)
+        dlg.exec()
+
+    def openLinealDialog(self, spalte):
+        dlg = LinealDialog(self, spalte)
+        dlg.exec()
+
+    def openMarkierungenVerwalten(self):
+        dlg = MarkierungenVerwaltenDialog(self.markierungen)
+        dlg.exec()
+        for seq in self.sequenzen:
+            seq.checkMarkierungen(self.markierungen)
+        self._sequenzscene.updateMarkierungen(self.markierungen)
 
 
 class SequenzenEncoder(json.JSONEncoder):
