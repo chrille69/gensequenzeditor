@@ -3,30 +3,31 @@ from bioinformatik import Sequenz
 
 
 class InsertSequenzCommand(QUndoCommand):
-    def __init__(self, sequenzenscene, name: str, txt: str):
+    def __init__(self, model, name: str, txt: str):
         super(InsertSequenzCommand, self).__init__('Sequenz hinzu '+name)
-        self.sequenzenscene = sequenzenscene
+        self.model = model
         self.sequenz = Sequenz(name)
         self.sequenz.importBasenString(txt)
 
     def redo(self):
-        self.sequenzenscene.addSequenzen([self.sequenz])
+        self.model.addSequenzen([self.sequenz])
 
     def undo(self):
-        self.sequenzenscene.removeSequenz(self.sequenz)
+        self.model.removeSequenz(self.sequenz)
 
 
 class RemoveSequenzCommand(QUndoCommand):
-    def __init__(self, editor, sequenz):
+    def __init__(self, model, sequenz):
         super(RemoveSequenzCommand, self).__init__('Sequenz entfernt '+sequenz.name())
-        self.sequenzenscene = editor._sequenzscene
+        self.model = model
         self.sequenz = sequenz
 
     def redo(self):
-        self.sequenzenscene.removeSequenz(self.sequenz)
+        self.model.removeSequenz(self.sequenz)
 
     def undo(self):
-        self.sequenzenscene.addSequenzen([self.sequenz])
+        self.model.addSequenzen([self.sequenz])
+
 
 class RenameSequenzCommand(QUndoCommand):
     def __init__(self, sequenz, nameneu):
@@ -41,6 +42,7 @@ class RenameSequenzCommand(QUndoCommand):
     def undo(self):
         self.sequenz.setName(self.namealt)
 
+
 class AminosaeureSequenzCommand(QUndoCommand):
     def __init__(self, sequenz):
         super(AminosaeureSequenzCommand, self).__init__('Sequenz in Aminos. '+sequenz.name())
@@ -53,6 +55,7 @@ class AminosaeureSequenzCommand(QUndoCommand):
 
     def undo(self):
         self.sequenz.setBasen(self.basenalt)
+
 
 class InsertLeerBaseCommand(QUndoCommand):
     def __init__(self, sequenz, index, anzahl):
@@ -67,6 +70,7 @@ class InsertLeerBaseCommand(QUndoCommand):
     def undo(self):
         self.sequenz.setBasen(self.basenalt)
 
+
 class EntferneBaseCommand(QUndoCommand):
     def __init__(self, sequenz, index, anzahl):
         super(EntferneBaseCommand, self).__init__('Entferne Basen')
@@ -79,6 +83,7 @@ class EntferneBaseCommand(QUndoCommand):
 
     def undo(self):
         self.sequenz.setBasen(self.basenalt)
+
 
 class InsertBaseCommand(QUndoCommand):
     def __init__(self, sequenz, index, seqtext):

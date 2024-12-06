@@ -3,7 +3,9 @@ from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
 
 from PySide6.QtWidgets import QGraphicsScene
-from pyside6 import basenlaenge, sequenznamewidth, MarkierungItem, SequenzItem, LinealItem
+from sceneitems import basenlaenge, sequenznamewidth, MarkierungItem, SequenzItem, LinealItem
+from bioinformatik import Sequenz, Markierung, Base
+from sequenzenmodel import SequenzenModel
 
 log = logging.getLogger(__name__)
 
@@ -17,19 +19,20 @@ class SequenzenScene(QGraphicsScene):
     """
 
     painted = Signal()
+    baseClicked = Signal(Base)
+    nameClicked = Signal(Sequenz)
+    linealClicked = Signal(int)
 
     fontBase = ('Courier', 14, 'bold')
     fontLineal = ('Courier', 12, 'bold')
     rahmendicke = 20
     abstandMarkierungen = 3
 
-    def __init__(self, parent, sequenzen=None, markierungen=None, versteckt=None, umbruch=False, spaltenzahl=50, zeigeversteckt=False):
+    def __init__(self, parent, sequenzenmodel: SequenzenModel, umbruch: bool = False, spaltenzahl: int = 50, zeigeversteckt: bool = False):
         super().__init__(parent)
-        self._sequenzen = sequenzen or []
-        self._markierungen = markierungen or []
+        self._model = sequenzenmodel
         self._umbruch = umbruch
         self._spaltenzahl = spaltenzahl
-        self._versteckt = versteckt or []
         self._zeigeversteckt = zeigeversteckt
 
         self._ystart = self.rahmendicke
@@ -38,6 +41,7 @@ class SequenzenScene(QGraphicsScene):
         self._linealitem = None
         self._sequenzitems = {}
 
+        self._model.modelchanged.connect(self.allesNeuZeichnen)
         self.setBackgroundBrush(Qt.white)
         self.allesNeuZeichnen()
 
@@ -46,55 +50,6 @@ class SequenzenScene(QGraphicsScene):
         self._linealitem = None
         self._sequenzitems = {}
         self.clear()
-
-    def markierungen(self):
-        return self._markierungen
-
-    def sequenzen(self):
-        return self._sequenzen
-
-    def versteckt(self):
-        return self._versteckt
-
-    def setMarkierungen(self, markierungen):
-        self._markierungen = markierungen
-        self.allesNeuZeichnen()
-
-    def setVersteckt(self, versteckt):
-        self._versteckt = versteckt
-        self.allesNeuZeichnen()
-
-    def setSequenzen(self, sequenzen):
-        self._sequenzen = sequenzen
-        self.allesNeuZeichnen()
-
-    def setAll(self, sequenzen=None, markierungen=None, versteckt=None):
-        self._sequenzen = sequenzen or []
-        self._markierungen = markierungen or []
-        self._versteckt = versteckt or []
-        self.allesNeuZeichnen()
-
-    def addSequenzen(self, seqarr):
-        self._sequenzen += seqarr
-        self.allesNeuZeichnen()
-
-    def addVersteckt(self, arr):
-        self._versteckt += arr
-        self.allesNeuZeichnen()
-
-    def removeVersteckt(self, arr):
-        for col in arr:
-            col in self._versteckt and self._versteckt.remove(col)
-        self.allesNeuZeichnen()
-    
-    def removeSequenz(self, sequenz):
-        self._sequenzen.remove(sequenz)
-        self.allesNeuZeichnen()
-
-    def updateMarkierungen(self):
-        for seq in self._sequenzen:
-            seq.checkMarkierungen(self._markierungen)
-        self.allesNeuZeichnen()
     
     def allesNeuZeichnen(self):
         """Zeichnet alles neu!
@@ -112,12 +67,12 @@ class SequenzenScene(QGraphicsScene):
         self._verstecktBemerkungZeichnen()
         self._linealZeichnen()
 
-        if not self._sequenzen:
+        if not self._model.sequenzen():
             self._keineSequenzenVorhanden()
             self.painted.emit()
             return
         
-        for sequenz in self._sequenzen:
+        for sequenz in self._model.sequenzen():
             self._sequenzZeichnen(sequenz, True)
             sequenz.basenchanged.connect(self._sequenzZeichnen)
             sequenz.namechanged.connect(self._sequenzZeichnen)
@@ -125,7 +80,7 @@ class SequenzenScene(QGraphicsScene):
         self.painted.emit()
 
 
-    def _sequenzZeichnen(self, sequenz, nopaintedemit=False):
+    def _sequenzZeichnen(self, sequenz: Sequenz, nopaintedemit: bool = False):
         """Zeichnet eine Sequenz.
 
         * seqidx: Die Nummer im Sequenzarray self.sequenzen
@@ -139,10 +94,11 @@ class SequenzenScene(QGraphicsScene):
         if self._maxlenBerechnen():
             self._linealZeichnen()
 
-        row = self._sequenzen.index(sequenz)
+        row = self._model.sequenzen().index(sequenz)
         if row in self._sequenzitems:
             self.removeItem(self._sequenzitems[row])
-        sequenzitem = SequenzItem(self, sequenz)
+        sequenzitem = SequenzItem(sequenz)
+        self.addItem(sequenzitem)
         self._sequenzitems[row] = sequenzitem
 
 
@@ -161,7 +117,7 @@ class SequenzenScene(QGraphicsScene):
 
             # Hier wird entschieden, ob die rote Linie für versteckte Sequenzen
             # gezeichnet werden soll.
-            aktuellversteckt = basidx in self._versteckt
+            aktuellversteckt = basidx in self._model.versteckt()
             if aktuellversteckt and not self._zeigeversteckt:
                 if not rotelinieschonda:
                     self._baseRoteLinieZeichnen(sequenzitem, col, row)
@@ -183,12 +139,13 @@ class SequenzenScene(QGraphicsScene):
         
         if self._linealitem:
             self.removeItem(self._linealitem)
-        self._linealitem = LinealItem(self)
+        self._linealitem = LinealItem()
+        self.addItem(self._linealitem)
         col = 0
         rotelinieschonda = False
         for i in range(self._maxlen):
 
-            aktuellversteckt = i in self._versteckt
+            aktuellversteckt = i in self._model.versteckt()
             if aktuellversteckt and not self._zeigeversteckt:
                     if not rotelinieschonda:
                         self._linealRoteLinieZeichnen(self._linealitem, col)
@@ -204,17 +161,17 @@ class SequenzenScene(QGraphicsScene):
         """Zeichnet über der Tabelle der Sequenzen die Markierungen"""
 
         self._ystart = self.rahmendicke
-        if not self._markierungen:
+        if not self._model.markierungen():
             self._keineMarkierungen()
             return
         
-        for markierung in self._markierungen:
+        for markierung in self._model.markierungen():
             self._markierungZeichnen(markierung)
 
     def _verstecktBemerkungZeichnen(self):
         """Zeichnet einen Infotext, wenn keine Markierungen vorhanden sind."""
 
-        if not self._versteckt:
+        if not self._model.versteckt():
             return
         abstand = self.abstandMarkierungen
         x = self.rahmendicke+sequenznamewidth+basenlaenge
@@ -232,14 +189,14 @@ class SequenzenScene(QGraphicsScene):
 # elementare Funktionen zum Zeichnen
 #################################################################
 
-    def _sequenznameZeichnen(self, sequenzitem, col, seqidx):
+    def _sequenznameZeichnen(self, sequenzitem: SequenzItem, col: int, seqidx: int):
         """Zeichnet den Sequenznamen
         
         Für den Sequenznamen wird ein Platz von self.raumFuerSequenznamen reserviert.
         Der Sequenzname wird verkürzt, falls er zu lang ist"""
 
         x, y = self._xyBaseFuerColRow(col, seqidx)
-        sequenzitem.addName(0, y, self.parent().openSequenzDialog)
+        sequenzitem.addName(0, y)
 
     def _keineSequenzenVorhanden(self):
         """Zeichnet einen Infotext, falls keine Sequenzen vorhanden sind."""
@@ -252,34 +209,35 @@ class SequenzenScene(QGraphicsScene):
         objektid.setPos(x,y)
         objektid.setTextWidth(sequenznamewidth-10)
 
-    def _baseZeichnen(self, sequenzitem, col, seqidx, base, versteckt):
+    def _baseZeichnen(self, sequenzitem: SequenzItem, col: int, seqidx: int, base: Base, versteckt: bool):
         """Zeichnet die Base mit dahintergelegten Rechteck, das bei Mouseover gehighlited werden kann."""
 
         x, y = self._xyBaseFuerColRow(col, seqidx)
-        sequenzitem.addBase(x, y, base, versteckt, self.parent().openBaseDialog)
+        sequenzitem.addBase(x, y, base, versteckt)
 
-    def _baseRoteLinieZeichnen(self, sequenzitem, basidx, seqidx):
+    def _baseRoteLinieZeichnen(self, sequenzitem: SequenzItem, basidx: int, seqidx: int):
         """Zeichnet die rote Linie einer versteckten Base"""
 
         x, y = self._xyBaseFuerColRow(basidx, seqidx)
         sequenzitem.addRoteLinie(x, y)
 
-    def _linealtickZeichnen(self, linealitem, idx, col, versteckt):
+    def _linealtickZeichnen(self, linealitem: LinealItem, idx: int, col: int, versteckt: bool):
         """Zeichnet dein Linealtick mit dahintergelegten Rechteck, das bei Mouseover gehighlited werden kann."""
 
         x, y = self._xyBaseFuerColRow(col, 0)
-        linealitem.addTick(x, y, idx, versteckt, self.parent().openLinealDialog)
+        linealitem.addTick(x, y, idx, versteckt)
 
-    def _linealRoteLinieZeichnen(self, linealitem, col):
+    def _linealRoteLinieZeichnen(self, linealitem: LinealItem, col: int):
         """Zeichnet die rote Linie eines versteckten Linealticks"""
 
         x, y = self._xyLinealFuerCol(col)
         linealitem.addRoteLinie(x, y)
 
-    def _markierungZeichnen(self, markierung):
+    def _markierungZeichnen(self, markierung: Markierung):
         x = self.rahmendicke+sequenznamewidth
         y = self._ystart
-        MarkierungItem(self, x, y, basenlaenge, self.abstandMarkierungen, markierung)
+        mi = MarkierungItem(x, y, basenlaenge, self.abstandMarkierungen, markierung)
+        self.addItem(mi)
         self._ystart += basenlaenge+self.abstandMarkierungen
 
     def _keineMarkierungen(self):
@@ -304,7 +262,7 @@ class SequenzenScene(QGraphicsScene):
     
     def _rowMitUmbruchBerechnen(self, col: int, row: int):
         "Berechnet die Zeile, wenn die Sequenzen umgebrochen werden"
-        return int(col/self._spaltenzahl) * (len(self._sequenzen)+2.5) + row
+        return int(col/self._spaltenzahl) * (len(self._model.sequenzen())+2.5) + row
 
     def _colrowHolen(self, baseidx: int, sequenzidx: int):
         "Berechnet aus der Sequenznummer und der Basennummer die Zeile und Spalte"
@@ -316,7 +274,7 @@ class SequenzenScene(QGraphicsScene):
             col = baseidx
         return (col, row)
 
-    def _xyBaseFuerColRow(self, col, row):
+    def _xyBaseFuerColRow(self, col: int, row: int):
         """
         Gibt die Leinwand-XY-Koordinaten für eine Base zurück.
         Es handelt sich um die linke, obere Ecke einer Basenbox.
@@ -326,7 +284,7 @@ class SequenzenScene(QGraphicsScene):
         row2 += 2
         return self._koordinaten(col2, row2)
 
-    def _xyLinealFuerCol(self, col):
+    def _xyLinealFuerCol(self, col: int):
         """
         Gibt die Leinwand-XY-Koordinaten für ein Linealtick zurück.
         Es handelt sich um die linke, obere Ecke einer Linealbox.
@@ -343,7 +301,7 @@ class SequenzenScene(QGraphicsScene):
         """
 
         maxlen = 0
-        for sequenz in self._sequenzen:
+        for sequenz in self._model.sequenzen():
             seqlen = len(sequenz.basen())
             if maxlen < seqlen:
                 maxlen = seqlen
@@ -356,20 +314,20 @@ class SequenzenScene(QGraphicsScene):
 # Slots
 ####################################################
 
-    def verstecktStateTrigger(self, checked):
+    def verstecktStateTrigger(self, checked: bool):
         if checked:
             self._zeigeversteckt = True
         else:
             self._zeigeversteckt = False
         self.allesNeuZeichnen()
 
-    def umbruchTrigger(self, checked):
+    def umbruchTrigger(self, checked: bool):
         if checked:
             self._umbruch = True
         else:
             self._umbruch = False
         self.allesNeuZeichnen()
 
-    def spaltenzahlTrigger(self, anzahl):
+    def spaltenzahlTrigger(self, anzahl: int):
         self._spaltenzahl = anzahl
         self.allesNeuZeichnen()

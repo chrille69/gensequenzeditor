@@ -6,8 +6,8 @@ from PySide6.QtWidgets import (QColorDialog, QDialog,
     QSpinBox, QComboBox, QLineEdit, QPlainTextEdit, QWidget,
 )
 
-from bioinformatik import Markierung, Base
-from commands import RemoveSequenzCommand, RenameSequenzCommand, AminosaeureSequenzCommand, InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand
+from bioinformatik import Markierung, Base, Sequenz
+from commands import InsertSequenzCommand, RemoveSequenzCommand, RenameSequenzCommand, AminosaeureSequenzCommand, InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand
 
 
 class BaseDialog(QDialog):
@@ -15,7 +15,7 @@ class BaseDialog(QDialog):
         super().__init__(parent)
         self.nonebasetext = '- keine -'
         self._base = base
-        self._markierungen = parent.sequenzscene().markierungen()
+        self._markierungen = parent.sequenzmodel().markierungen()
         self._auswahltexte = [self.nonebasetext]+[m.beschreibung() for m in self._markierungen]
         vbox = QVBoxLayout(self)
         self.setLayout(vbox)
@@ -113,7 +113,7 @@ class BaseDialog(QDialog):
 
 
 class SequenzDialog(QDialog):
-    def __init__(self, parent, sequenz):
+    def __init__(self, parent, sequenz: Sequenz):
         super().__init__(parent)
         self._sequenz = sequenz
         vbox = QVBoxLayout(self)
@@ -157,14 +157,15 @@ class SequenzDialog(QDialog):
         self.close()
 
     def entferne(self):
-        self.parent().undoStack.push(RemoveSequenzCommand(self.parent(), self._sequenz))
+        self.parent().undoStack.push(RemoveSequenzCommand(self.parent().sequenzmodel(), self._sequenz))
         self.close()
 
 
 class LinealDialog(QDialog):
-    def __init__(self, parent, column):
+
+    def __init__(self, parent, column: int):
         super().__init__()
-        self.sequenzscene = parent._sequenzscene
+        self.model = parent.sequenzmodel()
         self.column = column
         vbox = QVBoxLayout(self)
         self.setLayout(vbox)
@@ -196,18 +197,18 @@ class LinealDialog(QDialog):
         btn_enttarnen.clicked.connect(self.enttarnen)
 
     def verstecken(self):
-        self.sequenzscene.addVersteckt(range(self.column, self.column+self._sb_verstecken.value()))
+        self.model.addVersteckt(range(self.column, self.column+self._sb_verstecken.value()))
         self.close()
 
     def enttarnen(self):
-        self.sequenzscene.removeVersteckt(range(self.column, self.column+self._sb_enttarnen.value()))
+        self.model.removeVersteckt(range(self.column, self.column+self._sb_enttarnen.value()))
         self.close()
 
 
 class NeueSequenzDialog(QDialog):
-    def __init__(self, parent, neuesequenzcall):
+
+    def __init__(self, parent):
         super().__init__(parent)
-        self._neuesequenzcall = neuesequenzcall
         vbox = QVBoxLayout(self)
         self.setLayout(vbox)
         self._le_name = QLineEdit()
@@ -221,7 +222,9 @@ class NeueSequenzDialog(QDialog):
         vbox.addWidget(self._btn_ok)
 
     def fertig(self):
-        self._neuesequenzcall(self._le_name.text(), self._te_sequenztext.document().toRawText())
+        name = self._le_name.text()
+        text = self._te_sequenztext.document().toRawText()
+        self.parent().undoStack.push(InsertSequenzCommand(self.parent().sequenzmodel(), name, text))
         self.close()
 
 
@@ -248,6 +251,7 @@ class MarkierungenVerwaltenDialog(QDialog):
             mw = MarkierungWidget(self._frame, markierung, self._markierungEntfernen)
             self._vboxframe.addWidget(mw)
             mw.markierungenChanged.connect(self.markierungenChanged.emit)
+            mw.markierungRemoved.connect(self._markierungEntfernen)
 
     def _markierungAnhaengen(self):
         farbe = "#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)])
@@ -255,11 +259,12 @@ class MarkierungenVerwaltenDialog(QDialog):
         self._markierungen.append(m)
         mw = MarkierungWidget(self._frame, m, self._markierungEntfernen)
         mw.markierungenChanged.connect(self.markierungenChanged.emit)
+        mw.markierungRemoved.connect(self._markierungEntfernen)
         self._vboxframe.addWidget(mw)
         self.markierungenChanged.emit()
 
     def _markierungEntfernen(self, mw):
-        self._markierungen.remove(mw._markierung)
+        self._markierungen.remove(mw.markierung)
         mw.setParent(None)
         self.markierungenChanged.emit()
 
@@ -268,10 +273,11 @@ class MarkierungenVerwaltenDialog(QDialog):
 class MarkierungWidget(QWidget):
 
     markierungenChanged = Signal()
+    markierungRemoved = Signal(QWidget)
 
     def __init__(self, parent, markierung, entfernecallback):
         super().__init__(parent)
-        self._markierung = markierung
+        self.markierung = markierung
         self._entfernecallback = entfernecallback
         hbox = QHBoxLayout()
         self.setLayout(hbox)
@@ -281,7 +287,7 @@ class MarkierungWidget(QWidget):
 
         self._farbchooserbutton = QPushButton('Farbe wählen')
         self._farbchooserbutton.clicked.connect(self._farbauswahl)
-        self._farbchooserbutton.setStyleSheet(f'background-color:{self._markierung.farbe()}; padding: 5')
+        self._farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe()}; padding: 5')
         hbox.addWidget(self._farbchooserbutton)
 
         entfernebutton = QPushButton('-')
@@ -289,15 +295,15 @@ class MarkierungWidget(QWidget):
         hbox.addWidget(entfernebutton)
 
     def _beschreibungAktualisieren(self, *args):
-        self._markierung.setBeschreibung(self._le_beschreibung.text())
+        self.markierung.setBeschreibung(self._le_beschreibung.text())
         self.markierungenChanged.emit()
 
     def _farbauswahl(self):
-        farbe = QColorDialog.getColor(self._markierung.farbe())
+        farbe = QColorDialog.getColor(self.markierung.farbe())
         if farbe:
-            self._markierung.setFarbe(farbe.name())
+            self.markierung.setFarbe(farbe.name())
             self._farbchooserbutton.setStyleSheet(f'background-color:{farbe.name()};')
         self.markierungenChanged.emit()
 
     def _markierungEntfernen(self):
-        self._entfernecallback(self)
+        self.markierungRemoved.emit(self)
