@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QSpinBox, QMessageBox
 )
 
-VERSION = "1.7"
+VERSION = "1.8"
 from bioinformatik import Markierung, Sequenz, Base
 from sequenzenscene import SequenzenScene
 from sequenzenmodel import SequenzenModel
