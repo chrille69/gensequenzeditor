@@ -40,7 +40,7 @@ class Sequenz(QObject):
         pattern = re.compile(r'\s+')
         text = re.sub(pattern, '', text).upper()
         basenneu = self._basen.copy()
-        for char in text:
+        for char in text[::-1]:
             basenneu.insert(pos, Base(self, char))
         return basenneu
 
@@ -168,6 +168,9 @@ class Base(QObject):
 
 
 class Markierung(QObject):
+
+    markierungChanged = Signal()
+
     def __init__(self, _beschreibung, _farbe) -> None:
         super().__init__()
         self._beschreibung = _beschreibung
@@ -178,12 +181,14 @@ class Markierung(QObject):
 
     def setBeschreibung(self, beschreibung):
         self._beschreibung = beschreibung
+        self.markierungChanged.emit()
 
     def farbe(self):
         return self._farbe
 
     def setFarbe(self, farbe):
         self._farbe = farbe
+        self.markierungChanged.emit()
 
     def to_json(self):
         return { 'Markierung': { '_beschreibung': self._beschreibung, '_farbe': self._farbe } }

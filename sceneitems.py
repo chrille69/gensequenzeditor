@@ -17,6 +17,7 @@ seqfm = QFontMetrics(seqfont)
 basenlaenge = 20
 brushversteckt = QColor('lightgray')
 brushhighlight = QColor('lightblue')
+penhighlight = QColor('red')
 sequenznamewidth = 200
 
 
@@ -71,7 +72,7 @@ class SequenznameItem(QGraphicsRectItem):
         self.setPen(Qt.NoPen)
         gtxt = QGraphicsSimpleTextItem(text, parent)
         gtxt.setFont(seqfont)
-        w =seqfm.horizontalAdvance(text)
+        w = seqfm.horizontalAdvance(text)
         gtxt.setPos(x+sequenznamewidth-w, y+basenlaenge/2-seqfm.height()/2)
 
         self.setAcceptHoverEvents(True)
@@ -83,7 +84,7 @@ class SequenznameItem(QGraphicsRectItem):
         self.setBrush(Qt.NoBrush)
 
     def mousePressEvent(self, *args):
-        self.scene().nameClicked.emit(self.parentItem().sequenz())
+        self.scene().sequenzNameClicked.emit(self.parentItem().sequenz())
 
 
 class BaseItem(QGraphicsRectItem):
@@ -146,13 +147,14 @@ class LinealtickItem(QGraphicsRectItem):
         self.setAcceptHoverEvents(True)
 
     def hoverEnterEvent(self, event):
-        self.setBrush(QColor('lightblue'))
+        self.setBrush(brushhighlight)
 
     def hoverLeaveEvent(self, event):
         self.setBrush(self._brush)
 
     def mousePressEvent(self, *args):
         self.scene().linealClicked.emit(self._idx)
+
 
 class RotelinieItem(QGraphicsLineItem):
 
@@ -163,12 +165,49 @@ class RotelinieItem(QGraphicsLineItem):
         self.setPen(pen)
         self.setZValue(10)
 
+
 class MarkierungItem(QGraphicsRectItem):
 
     def __init__(self, x: int, y: int, laenge: int, abstand: int, markierung: Markierung):
         super().__init__(x, y, laenge, laenge)
+        self.markierung = markierung
+        self.farbe = QColor(markierung.farbe())
         self.setPen(Qt.NoPen)
-        self.setBrush(QColor(markierung.farbe()))
-        gmark = QGraphicsSimpleTextItem(markierung.beschreibung(), self)
-        gmark.setPos(x+laenge+abstand, y+laenge/3)
+        self.setBrush(self.farbe)
+        markierungColorItem = MarkierungColorItem(x, y, laenge, markierung, self)
+        markierungNameItem = MarkierungNameItem(markierung, self)
+        markierungNameItem.setPos(x+laenge+abstand, y)
 
+
+class MarkierungColorItem(QGraphicsRectItem):
+    def __init__(self, x: int, y: int, laenge: int, markierung: Markierung, parent: MarkierungItem):
+        super().__init__(x, y, laenge, laenge, parent)
+        self.markierung = markierung
+        self.farbe = QColor(markierung.farbe())
+        self.setPen(Qt.NoPen)
+        self.setBrush(self.farbe)
+
+
+class MarkierungNameItem(QGraphicsSimpleTextItem):
+
+    def __init__(self, markierung: Markierung, parent: MarkierungItem):
+        super().__init__(markierung.beschreibung(), parent)
+        self.markierung = markierung
+        self.backgroundBrush = Qt.NoBrush
+        self.setFont(seqfont)
+        self.setAcceptHoverEvents(True)
+
+    def paint(self, painter, option, widget):
+        painter.fillRect(option.rect, self.backgroundBrush)
+        return super().paint(painter, option, widget)
+
+    def hoverEnterEvent(self, event):
+        self.backgroundBrush = brushhighlight
+        self.update()
+
+    def hoverLeaveEvent(self, event):
+        self.backgroundBrush = Qt.NoBrush
+        self.update()
+
+    def mousePressEvent(self, *args):
+        self.scene().markierungNameClicked.emit(self.markierung)

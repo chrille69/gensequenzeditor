@@ -11,11 +11,14 @@ from PySide6.QtWidgets import (
 )
 
 VERSION = "1.7"
-from bioinformatik import Markierung, Sequenz
+from bioinformatik import Markierung, Sequenz, Base
 from sequenzenscene import SequenzenScene
 from sequenzenmodel import SequenzenModel
 from dialoge import NeueSequenzDialog, BaseDialog, SequenzDialog, LinealDialog, MarkierungenVerwaltenDialog
-from commands import InsertSequenzCommand
+from commands import (RemoveMarkierungCommand, changeColorMarkierungCommand, changeBeschreibungMarkierungCommand, AddMarkierungCommand,
+                      RenameSequenzCommand, AminosaeureSequenzCommand, RemoveSequenzCommand, InsertSequenzCommand,
+                      InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand
+)
 
 # Zum Erzeugen der exe:
 # pyinstaller.exe -F -i "oszli-icon.ico" -w sequenzeditor.py
@@ -103,38 +106,40 @@ class SequenzEditor(QMainWindow):
 
     def __init__(self, filenames):
         super().__init__()
+        sequenzen = []
+        versteckt = []
+        markierungen = []
+        if filenames:
+            try:
+                sequenzen, markierungen, versteckt = self.importJSONFile(filenames[0])
+            except Exception as e:
+                self.Fehlermeldung(str(e))
+
+        self._sequenzmodel = SequenzenModel(self, sequenzen, markierungen, versteckt)
+        self._sequenzscene = SequenzenScene(self, self.sequenzmodel())
+        self._grafik = QGraphicsView(self.sequenzscene())
         self._ungespeichert = False
-        self.undoStack = QUndoStack(self)
+        self._undoStack = QUndoStack(self)
 
         neuAction = QAction('&Neu', self)
-        neuAction.triggered.connect(self.fileNew)
         neuAction.setShortcut(QKeySequence.New)
         oeffnenAction = QAction('&Öffnen', self)
-        oeffnenAction.triggered.connect(self.fileOpen)
         oeffnenAction.setShortcut(QKeySequence.Open)
         speichernAction = QAction('&Speichern', self)
-        speichernAction.triggered.connect(self.fileSave)
         speichernAction.setShortcut(QKeySequence.Save)
         fastaimportAction = QAction('&FASTA importieren', self)
-        fastaimportAction.triggered.connect(self.importFasta)
         fastaimportAction.setShortcut(Qt.CTRL | Qt.Key_I)
         pngexportAction = QAction('&PNG exportieren', self)
-        pngexportAction.triggered.connect(self.exportPNG)
         pngexportAction.setShortcut(Qt.CTRL | Qt.Key_P)
         beendenAction = QAction('&Beenden', self)
-        beendenAction.triggered.connect(self.close)
         beendenAction.setShortcut(Qt.CTRL | Qt.Key_Q)
-
         neuesequenzAction = QAction('Neue &Sequenz anhängen', self)
-        neuesequenzAction.triggered.connect(self.neueSequenzDialog)
         neuesequenzAction.setShortcut(QKeySequence.SelectAll)
         markierungenAction = QAction('&Markierungen verwalten', self)
-        markierungenAction.triggered.connect(self.openMarkierungenVerwalten)
         markierungenAction.setShortcut(Qt.CTRL | Qt.Key_M)
-
-        undoAction = self.undoStack.createUndoAction(self)
+        undoAction = self._undoStack.createUndoAction(self)
         undoAction.setShortcut(QKeySequence.Undo)
-        redoAction = self.undoStack.createRedoAction(self)
+        redoAction = self._undoStack.createRedoAction(self)
         redoAction.setShortcut(QKeySequence.Redo)
 
         menubar = self.menuBar()
@@ -148,43 +153,25 @@ class SequenzEditor(QMainWindow):
         fileMenu.addActions([beendenAction])
         editMenu.addActions([neuesequenzAction, markierungenAction, undoAction, redoAction])
 
-        cb_zeilenumbrechen = QCheckBox('Zeilen umbrechen')
-        cb_zeilenumbrechen.setChecked(True)
-        sb_spaltenzahl = QSpinBox()
-        sb_spaltenzahl.setRange(1,1000)
-        sb_spaltenzahl.setValue(50)
-        cb_verstecktanzeigen = QCheckBox('Versteckte Spalten anzeigen')
-
-        sequenzen = []
-        versteckt = []
-        markierungen = []
-        if filenames:
-            try:
-                sequenzen, markierungen, versteckt = self.importJSONFile(filenames[0])
-            except Exception as e:
-                self.Fehlermeldung(str(e))
-
-        self._sequenzmodel = SequenzenModel(self, sequenzen, markierungen, versteckt)
-        self._sequenzscene = SequenzenScene(self, self._sequenzmodel, cb_zeilenumbrechen.isChecked(), sb_spaltenzahl.value(), cb_verstecktanzeigen.isChecked())
-        self._grafik = QGraphicsView(self._sequenzscene)
-        cb_zeilenumbrechen.stateChanged.connect(self._sequenzscene.umbruchTrigger)
-        sb_spaltenzahl.valueChanged.connect(self._sequenzscene.spaltenzahlTrigger)
-        cb_verstecktanzeigen.stateChanged.connect(self._sequenzscene.verstecktStateTrigger)
-        self._sequenzscene.painted.connect(self.paintedTrigger)
-        self._sequenzscene.baseClicked.connect(self.openBaseDialog)
-        self._sequenzscene.nameClicked.connect(self.openSequenzDialog)
-        self._sequenzscene.linealClicked.connect(self.openLinealDialog)
+        self.cb_zeilenumbrechen = QCheckBox('Zeilen umbrechen')
+        self.cb_zeilenumbrechen.setChecked(True)
+        self.sb_spaltenzahl = QSpinBox()
+        self.sb_spaltenzahl.setRange(1,1000)
+        self.sb_spaltenzahl.setValue(50)
+        self.sb_spaltenzahl.setToolTip('Mit Enter bestätigen')
+        self.cb_verstecktanzeigen = QCheckBox('Versteckte Spalten anzeigen')
+        self.cb_verstecktanzeigen.setChecked(False)
 
         tools = QToolBar()
         self.addToolBar(Qt.TopToolBarArea, tools)
         tools.addAction(undoAction)
         tools.addAction(redoAction)
         tools.addSeparator()
-        tools.addWidget(cb_zeilenumbrechen)
+        tools.addWidget(self.cb_zeilenumbrechen)
         tools.addSeparator()
-        tools.addWidget(sb_spaltenzahl)
+        tools.addWidget(self.sb_spaltenzahl)
         tools.addSeparator()
-        tools.addWidget(cb_verstecktanzeigen)
+        tools.addWidget(self.cb_verstecktanzeigen)
         tools.addSeparator()
         tools.addAction(neuesequenzAction)
         tools.addAction(markierungenAction)
@@ -192,12 +179,38 @@ class SequenzEditor(QMainWindow):
         self.statusBar().addPermanentWidget(QLabel(f'Version {VERSION}'))
         self.setCentralWidget(self._grafik)
 
+        neuAction.triggered.connect(self.fileNew)
+        oeffnenAction.triggered.connect(self.fileOpen)
+        speichernAction.triggered.connect(self.fileSave)
+        fastaimportAction.triggered.connect(self.importFasta)
+        pngexportAction.triggered.connect(self.exportPNG)
+        beendenAction.triggered.connect(self.close)
+        neuesequenzAction.triggered.connect(self.neueSequenzDialog)
+        markierungenAction.triggered.connect(self.openMarkierungenVerwalten)
+        self.cb_zeilenumbrechen.stateChanged.connect(self.sequenzscene().umbruchTrigger)
+        self.sb_spaltenzahl.editingFinished.connect(self._setze_spaltenzahl)
+        self.cb_verstecktanzeigen.stateChanged.connect(self.sequenzscene().verstecktStateTrigger)
+        self._sequenzscene.painted.connect(self.paintedTrigger)
+        self._sequenzscene.baseClicked.connect(self.openBaseDialog)
+        self._sequenzscene.sequenzNameClicked.connect(self.openSequenzDialog)
+        self._sequenzscene.linealClicked.connect(self.openLinealDialog)
+        self._sequenzscene.markierungNameClicked.connect(self.openMarkierungenVerwalten)
+
     def sequenzscene(self) -> SequenzenScene:
         return self._sequenzscene
 
     def sequenzmodel(self) -> SequenzenModel:
         return self._sequenzmodel
 
+    def is_umbruch(self) -> bool:
+        return self.cb_zeilenumbrechen.isChecked()
+
+    def is_zeige_versteckt(self) -> bool:
+        return self.cb_verstecktanzeigen.isChecked()
+    
+    def spaltenzahl(self) -> int:
+        return self.sb_spaltenzahl.value()
+    
     def closeEvent(self, event):
         if not self.ungespeichertFortfahren('Editor beenden'):
             event.ignore()
@@ -306,6 +319,57 @@ class SequenzEditor(QMainWindow):
     
         saving = img.save(filename)
 
+    def _setze_spaltenzahl(self):
+        self.sequenzscene().spaltenzahlTrigger(self.sb_spaltenzahl.value())
+
+##########################################
+# Kommandos, die das Model betreffen
+##########################################
+
+    def base_leer_hinzu(self, base: Base, anzahl: int):
+        self._undoStack.push(InsertLeerBaseCommand(base, anzahl))
+
+    def base_markieren(self, base: Base, anzahl: int, markierung: Markierung):
+        sequenz = base.sequenz()
+        baseidx = base.getIndexInSequenz()
+        sequenz.markiereBasen(baseidx, anzahl, markierung)
+
+    def base_entfernen(self, base: Base, anzahl: int):
+        self._undoStack.push(EntferneBaseCommand(base, anzahl))
+
+    def base_sequenz_hinzu(self, base: Base, seqtext: str):
+        self._undoStack.push(InsertBaseCommand(base, seqtext))
+
+    def sequenz_hinzu(self, name: str, text: str):
+        self._undoStack.push(InsertSequenzCommand(self.sequenzmodel(), name, text))
+
+    def sequenz_umbenennen(self, sequenz: Sequenz, name: str):
+        self._undoStack.push(RenameSequenzCommand(sequenz, name))
+
+    def sequenz_in_aminosaeure(self, sequenz: Sequenz):
+        self._undoStack.push(AminosaeureSequenzCommand(sequenz))
+
+    def sequenz_entfernen(self, sequenz: Sequenz):
+        self._undoStack.push(RemoveSequenzCommand(self.sequenzmodel(), sequenz))
+
+    def basen_verstecken(self, bereich: range):
+        self.sequenzmodel().addVersteckt(bereich)
+
+    def basen_enttarnen(self, bereich: range):
+        self.sequenzmodel().removeVersteckt(bereich)
+
+    def markierung_hinzu(self, markierung: Markierung):
+        self._undoStack.push(AddMarkierungCommand(self.sequenzmodel(), markierung))
+
+    def markierung_entfernen(self, markierung: Markierung):
+        self._undoStack.push(RemoveMarkierungCommand(self.sequenzmodel(), markierung))
+
+    def markierung_farbe_setzen(self, markierung: Markierung, farbe: str):
+        self._undoStack.push(changeColorMarkierungCommand(markierung, farbe))
+
+    def markierung_name_setzen(self, markierung: Markierung, name: str):
+        self._undoStack.push(changeBeschreibungMarkierungCommand(markierung, name))
+
 ##########################################
 # Dialoge
 ##########################################
@@ -314,26 +378,38 @@ class SequenzEditor(QMainWindow):
         msgBox = QMessageBox()
         msgBox.warning(self, 'Fehler!', text)
 
-    def neueSequenzDialog(self):
-        dlg = NeueSequenzDialog(self)
-        dlg.exec()
-
     def openBaseDialog(self, base):
         dlg = BaseDialog(self, base)
+        dlg.baseLeerHinzu.connect(self.base_leer_hinzu)
+        dlg.baseMarkieren.connect(self.base_markieren)
+        dlg.baseEntfernen.connect(self.base_entfernen)
+        dlg.baseSequenzHinzu.connect(self.base_sequenz_hinzu)
         dlg.exec()
 
-    def openSequenzDialog(self,sequenz):
+    def neueSequenzDialog(self):
+        dlg = NeueSequenzDialog(self)
+        dlg.sequenzHinzu.connect(self.sequenz_hinzu)
+        dlg.exec()
+
+    def openSequenzDialog(self, sequenz):
         dlg = SequenzDialog(self, sequenz)
+        dlg.sequenzUmbenennen.connect(self.sequenz_umbenennen)
+        dlg.sequenzEntfernen.connect(self.sequenz_entfernen)
+        dlg.sequenzInAmino.connect(self.sequenz_in_aminosaeure)
         dlg.exec()
 
     def openLinealDialog(self, spalte):
         dlg = LinealDialog(self, spalte)
+        dlg.basenVerstecken.connect(self.basen_verstecken)
+        dlg.basenEnttarnen.connect(self.basen_enttarnen)
         dlg.exec()
 
     def openMarkierungenVerwalten(self):
-        markierungen = self._sequenzmodel.markierungen()
-        dlg = MarkierungenVerwaltenDialog(markierungen)
-        dlg.markierungenChanged.connect(self._sequenzmodel.updateMarkierungen)
+        dlg = MarkierungenVerwaltenDialog(self)
+        dlg.markierungHinzu.connect(self.markierung_hinzu)
+        dlg.markierungEntfernen.connect(self.markierung_entfernen)
+        dlg.markierungFarbeSetzen.connect(self.markierung_farbe_setzen)
+        dlg.markierungUmbenennen.connect(self.markierung_name_setzen)
         dlg.exec()
 
 

@@ -1,3 +1,4 @@
+
 import logging
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
@@ -8,6 +9,7 @@ from bioinformatik import Sequenz, Markierung, Base
 from sequenzenmodel import SequenzenModel
 
 log = logging.getLogger(__name__)
+
 
 class SequenzenScene(QGraphicsScene):
     """
@@ -20,15 +22,16 @@ class SequenzenScene(QGraphicsScene):
 
     painted = Signal()
     baseClicked = Signal(Base)
-    nameClicked = Signal(Sequenz)
+    sequenzNameClicked = Signal(Sequenz)
     linealClicked = Signal(int)
+    markierungNameClicked = Signal(Markierung)
 
     fontBase = ('Courier', 14, 'bold')
     fontLineal = ('Courier', 12, 'bold')
     rahmendicke = 20
     abstandMarkierungen = 3
 
-    def __init__(self, parent, sequenzenmodel: SequenzenModel, umbruch: bool = False, spaltenzahl: int = 50, zeigeversteckt: bool = False):
+    def __init__(self, parent, sequenzenmodel: SequenzenModel, umbruch: bool = True, spaltenzahl: int = 50, zeigeversteckt: bool = False):
         super().__init__(parent)
         self._model = sequenzenmodel
         self._umbruch = umbruch

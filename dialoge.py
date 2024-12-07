@@ -7,10 +7,14 @@ from PySide6.QtWidgets import (QColorDialog, QDialog,
 )
 
 from bioinformatik import Markierung, Base, Sequenz
-from commands import InsertSequenzCommand, RemoveSequenzCommand, RenameSequenzCommand, AminosaeureSequenzCommand, InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand
-
 
 class BaseDialog(QDialog):
+
+    baseLeerHinzu = Signal(Base, int)
+    baseEntfernen = Signal(Base, int)
+    baseSequenzHinzu = Signal(Base, str)
+    baseMarkieren = Signal(Base, int, Markierung)
+
     def __init__(self, parent, base: Base):
         super().__init__(parent)
         self.nonebasetext = '- keine -'
@@ -79,9 +83,7 @@ class BaseDialog(QDialog):
         btn_insertbasen.clicked.connect(self.insertclick)
 
     def leerclick(self):
-        sequenz = self._base.sequenz()
-        baseidx = self._base.getIndexInSequenz()
-        self.parent().undoStack.push(InsertLeerBaseCommand(sequenz, baseidx, self._sb_leeranzahl.value()))
+        self.baseLeerHinzu.emit(self._base, self._sb_leeranzahl.value())
         self.close()
 
     def markierselect(self):
@@ -91,28 +93,27 @@ class BaseDialog(QDialog):
             if text == m.beschreibung():
                 markierung = m
                 break
-        sequenz = self._base.sequenz()
-        baseidx = self._base.getIndexInSequenz()
-        sequenz.markiereBasen(baseidx,self._sb_markieranzahl.value(), markierung)
+        self.baseMarkieren.emit(self._base, self._sb_markieranzahl.value(), markierung)
         self.close()
 
     def entferneclick(self):
         anzahl = self._sb_entferneanzahl.value()
         if anzahl > 0:
-            sequenz = self._base.sequenz()
-            baseidx = self._base.getIndexInSequenz()
-            self.parent().undoStack.push(EntferneBaseCommand(sequenz, baseidx, anzahl))
+            self.baseEntfernen.emit(self._base, anzahl)
         self.close()
 
     def insertclick(self):
         seqtext = self._le_inserttext.text()
-        sequenz = self._base.sequenz()
-        baseidx = self._base.getIndexInSequenz()
-        self.parent().undoStack.push(InsertBaseCommand(sequenz, baseidx, seqtext))
+        self.baseSequenzHinzu.emit(self._base, seqtext)
         self.close()
 
 
 class SequenzDialog(QDialog):
+
+    sequenzEntfernen = Signal(Sequenz)
+    sequenzUmbenennen = Signal(Sequenz, str)
+    sequenzInAmino = Signal(Sequenz)
+
     def __init__(self, parent, sequenz: Sequenz):
         super().__init__(parent)
         self._sequenz = sequenz
@@ -149,19 +150,22 @@ class SequenzDialog(QDialog):
 
 
     def umbenennenclick(self):
-        self.parent().undoStack.push(RenameSequenzCommand(self._sequenz, self._in_sequenzname.text()))
+        self.sequenzUmbenennen.emit(self._sequenz, self._in_sequenzname.text())
         self.close()
 
     def aminosaeure(self):
-        self.parent().undoStack.push(AminosaeureSequenzCommand(self._sequenz))
+        self.sequenzInAmino.emit(self._sequenz)
         self.close()
 
     def entferne(self):
-        self.parent().undoStack.push(RemoveSequenzCommand(self.parent().sequenzmodel(), self._sequenz))
+        self.sequenzEntfernen.emit(self._sequenz)
         self.close()
 
 
 class LinealDialog(QDialog):
+
+    basenVerstecken = Signal(range)
+    basenEnttarnen = Signal(range)
 
     def __init__(self, parent, column: int):
         super().__init__()
@@ -197,15 +201,17 @@ class LinealDialog(QDialog):
         btn_enttarnen.clicked.connect(self.enttarnen)
 
     def verstecken(self):
-        self.model.addVersteckt(range(self.column, self.column+self._sb_verstecken.value()))
+        self.basenVerstecken.emit(range(self.column, self.column+self._sb_verstecken.value()))
         self.close()
 
     def enttarnen(self):
-        self.model.removeVersteckt(range(self.column, self.column+self._sb_enttarnen.value()))
+        self.basenEnttarnen.emit(range(self.column, self.column+self._sb_verstecken.value()))
         self.close()
 
 
 class NeueSequenzDialog(QDialog):
+
+    sequenzHinzu = Signal(str, str)
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -224,22 +230,30 @@ class NeueSequenzDialog(QDialog):
     def fertig(self):
         name = self._le_name.text()
         text = self._te_sequenztext.document().toRawText()
-        self.parent().undoStack.push(InsertSequenzCommand(self.parent().sequenzmodel(), name, text))
+        self.sequenzHinzu.emit(name, text)
         self.close()
 
 
 class MarkierungenVerwaltenDialog(QDialog):
 
-    markierungenChanged = Signal()
+    markierungEntfernen = Signal(Markierung)
+    markierungFarbeSetzen = Signal(Markierung, str)
+    markierungUmbenennen = Signal(Markierung, str)
+    markierungHinzu = Signal(Markierung)
 
-    def __init__(self, markierungen):
-        super().__init__()
-        self._markierungen = markierungen
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.model = parent.sequenzmodel()
+        self.markierungen = self.model.markierungen()
         vbox = QVBoxLayout()
         self.setLayout(vbox)
         btn_plus = QPushButton('+')
         btn_plus.clicked.connect(self._markierungAnhaengen)
         btn_plus.setFixedWidth(40)
+        btn_fertig = QPushButton('Fertig')
+        btn_fertig.clicked.connect(self.close)
+        btn_fertig.setFixedWidth(40)
+
         self._frame = QWidget()
         self._vboxframe = QVBoxLayout()
         self._frame.setLayout(self._vboxframe)
@@ -247,42 +261,46 @@ class MarkierungenVerwaltenDialog(QDialog):
         vbox.addWidget(QLabel('Keine gleichen Namen verwenden!'))
         vbox.addWidget(btn_plus)
         vbox.addWidget(self._frame)
-        for markierung in self._markierungen:
-            mw = MarkierungWidget(self._frame, markierung, self._markierungEntfernen)
+        vbox.addWidget(btn_fertig)
+
+        for markierung in self.markierungen:
+            mw = MarkierungWidget(self._frame, markierung)
             self._vboxframe.addWidget(mw)
-            mw.markierungenChanged.connect(self.markierungenChanged.emit)
             mw.markierungRemoved.connect(self._markierungEntfernen)
+            mw.markierungFarbeChanged.connect(self.markierungFarbeSetzen.emit)
+            mw.markierungNameChanged.connect(self.markierungUmbenennen.emit)
 
     def _markierungAnhaengen(self):
         farbe = "#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)])
-        m = Markierung(f'Unbenannt{farbe}',farbe)
-        self._markierungen.append(m)
-        mw = MarkierungWidget(self._frame, m, self._markierungEntfernen)
-        mw.markierungenChanged.connect(self.markierungenChanged.emit)
+        markierung = Markierung(f'Unbenannt{farbe}',farbe)
+        self.markierungHinzu.emit(markierung)
+        mw = MarkierungWidget(self._frame, markierung)
         mw.markierungRemoved.connect(self._markierungEntfernen)
+        mw.markierungFarbeChanged.connect(self.markierungFarbeSetzen.emit)
+        mw.markierungNameChanged.connect(self.markierungUmbenennen.emit)
         self._vboxframe.addWidget(mw)
-        self.markierungenChanged.emit()
 
     def _markierungEntfernen(self, mw):
-        self._markierungen.remove(mw.markierung)
+        self.markierungEntfernen.emit(mw.markierung)
         mw.setParent(None)
-        self.markierungenChanged.emit()
 
+    def closeEvent(self, arg__1):
+        return super().closeEvent(arg__1)
 
 
 class MarkierungWidget(QWidget):
 
-    markierungenChanged = Signal()
-    markierungRemoved = Signal(QWidget)
+    markierungRemoved = Signal(Markierung)
+    markierungFarbeChanged = Signal(Markierung, str)
+    markierungNameChanged = Signal(Markierung, str)
 
-    def __init__(self, parent, markierung, entfernecallback):
+    def __init__(self, parent, markierung):
         super().__init__(parent)
         self.markierung = markierung
-        self._entfernecallback = entfernecallback
         hbox = QHBoxLayout()
         self.setLayout(hbox)
         self._le_beschreibung = QLineEdit(markierung.beschreibung())
-        self._le_beschreibung.textChanged.connect(self._beschreibungAktualisieren)
+        self._le_beschreibung.editingFinished.connect(self._beschreibungAktualisieren)
         hbox.addWidget(self._le_beschreibung)
 
         self._farbchooserbutton = QPushButton('Farbe wählen')
@@ -295,15 +313,13 @@ class MarkierungWidget(QWidget):
         hbox.addWidget(entfernebutton)
 
     def _beschreibungAktualisieren(self, *args):
-        self.markierung.setBeschreibung(self._le_beschreibung.text())
-        self.markierungenChanged.emit()
+        self.markierungNameChanged.emit(self.markierung, self._le_beschreibung.text())
 
     def _farbauswahl(self):
         farbe = QColorDialog.getColor(self.markierung.farbe())
         if farbe:
-            self.markierung.setFarbe(farbe.name())
+            self.markierungFarbeChanged.emit(self.markierung, farbe.name())
             self._farbchooserbutton.setStyleSheet(f'background-color:{farbe.name()};')
-        self.markierungenChanged.emit()
 
     def _markierungEntfernen(self):
         self.markierungRemoved.emit(self)
