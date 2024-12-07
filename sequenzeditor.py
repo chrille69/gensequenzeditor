@@ -2,7 +2,7 @@ import sys
 import logging
 import json
 
-from PySide6.QtCore import QSize, QRectF, QByteArray, Qt
+from PySide6.QtCore import QSize, QRectF, Qt
 from PySide6.QtGui import QColor, QAction, QImage, QPainter, QPixmap, QIcon, QUndoStack, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QLabel, QMainWindow, QFileDialog, 
@@ -25,7 +25,7 @@ import resources
 # Zum Erzeugen der exe:
 # pyinstaller.exe -F -i resources/oszli-icon.ico -w .\sequenzeditor.py
 #
-# Falls sich Resourcen geänder haben:
+# Falls sich Resourcen geändert haben:
 # pyside6-rcc resources.qrc -o resources.py
 
 log = logging.getLogger(__name__)
