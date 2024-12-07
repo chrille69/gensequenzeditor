@@ -4,11 +4,13 @@ from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
 
 from PySide6.QtWidgets import QGraphicsScene
-from sceneitems import basenlaenge, sequenznamewidth, MarkierungItem, SequenzItem, LinealItem
+from sceneitems import basenlaenge, sequenznamewidth, SequenzItem, LinealItem
 from bioinformatik import Sequenz, Markierung, Base
 from sequenzenmodel import SequenzenModel
 
+logging.basicConfig()
 log = logging.getLogger(__name__)
+#log.setLevel(logging.DEBUG)
 
 
 class SequenzenScene(QGraphicsScene):
@@ -50,10 +52,15 @@ class SequenzenScene(QGraphicsScene):
 
     def _emptyCanvas(self):
         """Leert die Leinwand"""
+
+        log.debug('_emptyCanvas Start')
+
         self._linealitem = None
         self._sequenzitems = {}
         self.clear()
-    
+
+        log.debug('_emptyCanvas Ende')
+
     def allesNeuZeichnen(self):
         """Zeichnet alles neu!
         
@@ -64,9 +71,11 @@ class SequenzenScene(QGraphicsScene):
         * versteckt: Ein Array, das die Spaltennummern enthält, die versteckt werden sollen.
         * zeigeversteckt: Boolean. Gibt an, ob die versteckten Spalten ausgeblendet oder ausgegraut werden sollen."""
 
+        log.debug('allesNeuZeichnen Start')
+        log.debug(self.sender())
+
         self._emptyCanvas()
         self._maxlenBerechnen()
-        self._markierungenZeichnen()
         self._verstecktBemerkungZeichnen()
         self._linealZeichnen()
 
@@ -78,9 +87,10 @@ class SequenzenScene(QGraphicsScene):
         for sequenz in self._model.sequenzen():
             self._sequenzZeichnen(sequenz, True)
             sequenz.basenchanged.connect(self._sequenzZeichnen)
-            sequenz.namechanged.connect(self._sequenzZeichnen)
 
         self.painted.emit()
+        log.debug('allesNeuZeichnen Ende')
+
 
 
     def _sequenzZeichnen(self, sequenz: Sequenz, nopaintedemit: bool = False):
@@ -160,17 +170,6 @@ class SequenzenScene(QGraphicsScene):
             col += 1
             rotelinieschonda = False
 
-    def _markierungenZeichnen(self):
-        """Zeichnet über der Tabelle der Sequenzen die Markierungen"""
-
-        self._ystart = self.rahmendicke
-        if not self._model.markierungen():
-            self._keineMarkierungen()
-            return
-        
-        for markierung in self._model.markierungen():
-            self._markierungZeichnen(markierung)
-
     def _verstecktBemerkungZeichnen(self):
         """Zeichnet einen Infotext, wenn keine Markierungen vorhanden sind."""
 
@@ -236,38 +235,19 @@ class SequenzenScene(QGraphicsScene):
         x, y = self._xyLinealFuerCol(col)
         linealitem.addRoteLinie(x, y)
 
-    def _markierungZeichnen(self, markierung: Markierung):
-        x = self.rahmendicke+sequenznamewidth
-        y = self._ystart
-        mi = MarkierungItem(x, y, basenlaenge, self.abstandMarkierungen, markierung)
-        self.addItem(mi)
-        self._ystart += basenlaenge+self.abstandMarkierungen
-
-    def _keineMarkierungen(self):
-        """Zeichnet einen Infotext, wenn keine Markierungen vorhanden sind."""
-
-        abstand = self.abstandMarkierungen
-        x = self.rahmendicke+sequenznamewidth+basenlaenge
-        y = self._ystart
-        objektid = self.addText('Keine Markierungen vorhanden')
-        objektid.setDefaultTextColor(Qt.black)
-        objektid.setPos(x,y)
-        self._ystart += basenlaenge+abstand
-
-
 #########################################################
 # Koordinatenfunktionen
 #########################################################
 
-    def _koordinaten(self, col: int, row: int):
+    def _koordinaten(self, col: int, row: int) -> tuple[int,int]:
         "Wandelt col,row in x,y der Leinwand um"
         return [ col*basenlaenge+sequenznamewidth+self.rahmendicke, row*basenlaenge+self._ystart ]
     
-    def _rowMitUmbruchBerechnen(self, col: int, row: int):
+    def _rowMitUmbruchBerechnen(self, col: int, row: int) -> int:
         "Berechnet die Zeile, wenn die Sequenzen umgebrochen werden"
         return int(col/self._spaltenzahl) * (len(self._model.sequenzen())+2.5) + row
 
-    def _colrowHolen(self, baseidx: int, sequenzidx: int):
+    def _colrowHolen(self, baseidx: int, sequenzidx: int) -> tuple[int,int]:
         "Berechnet aus der Sequenznummer und der Basennummer die Zeile und Spalte"
         if self._umbruch:
             row = self._rowMitUmbruchBerechnen(baseidx, sequenzidx)
@@ -277,7 +257,7 @@ class SequenzenScene(QGraphicsScene):
             col = baseidx
         return (col, row)
 
-    def _xyBaseFuerColRow(self, col: int, row: int):
+    def _xyBaseFuerColRow(self, col: int, row: int) -> tuple[int,int]:
         """
         Gibt die Leinwand-XY-Koordinaten für eine Base zurück.
         Es handelt sich um die linke, obere Ecke einer Basenbox.
@@ -287,7 +267,7 @@ class SequenzenScene(QGraphicsScene):
         row2 += 2
         return self._koordinaten(col2, row2)
 
-    def _xyLinealFuerCol(self, col: int):
+    def _xyLinealFuerCol(self, col: int) -> tuple[int,int]:
         """
         Gibt die Leinwand-XY-Koordinaten für ein Linealtick zurück.
         Es handelt sich um die linke, obere Ecke einer Linealbox.
@@ -318,13 +298,17 @@ class SequenzenScene(QGraphicsScene):
 ####################################################
 
     def verstecktStateTrigger(self, checked: bool):
+        log.debug('Start verstecktStateTrigger')
+        log.debug(self.sender())
         if checked:
             self._zeigeversteckt = True
         else:
             self._zeigeversteckt = False
         self.allesNeuZeichnen()
+        log.debug('Ende verstecktStateTrigger')
 
     def umbruchTrigger(self, checked: bool):
+        log.debug(self.sender())
         if checked:
             self._umbruch = True
         else:
@@ -332,5 +316,6 @@ class SequenzenScene(QGraphicsScene):
         self.allesNeuZeichnen()
 
     def spaltenzahlTrigger(self, anzahl: int):
+        log.debug(self.sender())
         self._spaltenzahl = anzahl
         self.allesNeuZeichnen()

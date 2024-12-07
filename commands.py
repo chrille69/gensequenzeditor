@@ -79,6 +79,30 @@ class InsertLeerBaseCommand(QUndoCommand):
         self.sequenz.setBasen(self.basenalt)
 
 
+class MarkiereBasenCommand(QUndoCommand):
+
+    def __init__(self, base: Base, anzahl: int, markierung: Markierung):
+        super(MarkiereBasenCommand, self).__init__('Basen markiert')
+        index = base.getIndexInSequenz()
+        sequenz = base.sequenz()
+        neu_markiert = sequenz.basen()[index:index+anzahl]
+        self.basen_mark_alt = {}
+        self.basen_mark_neu = {}
+        for b in sequenz.basen():
+            self.basen_mark_alt[b] = b.markierung()
+            self.basen_mark_neu[b] = b.markierung()
+            if b in neu_markiert:
+                self.basen_mark_neu[b] = markierung
+
+    def redo(self):
+        for b in self.basen_mark_neu:
+            b.setMarkierung(self.basen_mark_neu[b])
+
+    def undo(self):
+        for b in self.basen_mark_alt:
+            b.setMarkierung(self.basen_mark_alt[b])
+
+
 class EntferneBaseCommand(QUndoCommand):
 
     def __init__(self, base: Base, anzahl: int):
@@ -119,6 +143,7 @@ class RemoveMarkierungCommand(QUndoCommand):
         self.markierung = markierung
 
     def redo(self):
+        self.markierung.deleted.emit()
         self.model.removeMarkierung(self.markierung)
 
     def undo(self):
@@ -167,3 +192,30 @@ class changeBeschreibungMarkierungCommand(QUndoCommand):
 
     def undo(self):
         self.markierung.setBeschreibung(self.namealt)
+
+
+class VerstecktCommand(QUndoCommand):
+
+    def __init__(self, model: SequenzenModel, versteckt: list[bool]):
+        super(VerstecktCommand, self).__init__('Verstecken')
+        self.model = model
+        self.versteckt = versteckt
+
+    def redo(self):
+        self.model.addVersteckt(self.versteckt)
+
+    def undo(self):
+        self.model.removeVersteckt(self.versteckt)
+
+class EnttarnenCommand(QUndoCommand):
+
+    def __init__(self, model: SequenzenModel, enttarnen: list[bool]):
+        super(EnttarnenCommand, self).__init__('Enttarnen')
+        self.model = model
+        self.enttarnen = enttarnen
+
+    def redo(self):
+        self.model.removeVersteckt(self.enttarnen)
+
+    def undo(self):
+        self.model.addVersteckt(self.enttarnen)

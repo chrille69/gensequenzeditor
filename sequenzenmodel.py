@@ -8,6 +8,7 @@ log = logging.getLogger(__name__)
 class SequenzenModel(QObject):
 
     modelchanged = Signal()
+    markierungenChanged = Signal()
 
     def __init__(self, parent: QObject, sequenzen: list[Sequenz] = None, markierungen: list[Markierung] = None, versteckt: list[range] = None):
         super().__init__(parent)
@@ -15,23 +16,21 @@ class SequenzenModel(QObject):
         self._markierungen = markierungen or []
         self._versteckt = versteckt or []
 
-        self.connectMarkierungenSignals()
-
-    def sequenzen(self):
+    def sequenzen(self) -> list[Sequenz]:
         return self._sequenzen
 
-    def markierungen(self):
+    def markierungen(self) -> list[Markierung]:
         return self._markierungen
 
-    def versteckt(self):
+    def versteckt(self) -> list[bool]:
         return self._versteckt
 
     def setAll(self, sequenzen: list[Sequenz] = None, markierungen: list[Markierung] = None, versteckt: list[range] = None):
         self._sequenzen = sequenzen or []
         self._markierungen = markierungen or []
         self._versteckt = versteckt or []
-        self.connectMarkierungenSignals()
         self.modelchanged.emit()
+        self.markierungenChanged.emit()
 
     def addSequenzen(self, seqarr: list[Sequenz]):
         self._sequenzen += seqarr
@@ -43,13 +42,11 @@ class SequenzenModel(QObject):
 
     def addMarkierungen(self, markarr: list[Markierung]):
         self._markierungen += markarr
-        self.connectMarkierungenSignals(markarr)
-        self.modelchanged.emit()
+        self.markierungenChanged.emit()
 
     def removeMarkierung(self, markierung: Markierung):
         self._markierungen.remove(markierung)
-        self.updateMarkierungen()
-        self.modelchanged.emit()
+        self.markierungenChanged.emit()
 
     def addVersteckt(self, arr: list[range]):
         self._versteckt += arr
@@ -59,12 +56,3 @@ class SequenzenModel(QObject):
         for col in arr:
             col in self._versteckt and self._versteckt.remove(col)
         self.modelchanged.emit()
-    
-    def updateMarkierungen(self):
-        for seq in self._sequenzen:
-            seq.checkMarkierungen(self._markierungen)
-
-    def connectMarkierungenSignals(self, markierungen=None):
-        for markierung in markierungen or self._markierungen:
-            markierung.markierungChanged.connect(self.modelchanged.emit)
-            

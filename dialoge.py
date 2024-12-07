@@ -1,9 +1,8 @@
-import random
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import (QColorDialog, QDialog, 
+from PySide6.QtWidgets import (QDialog, 
     QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
-    QSpinBox, QComboBox, QLineEdit, QPlainTextEdit, QWidget,
+    QSpinBox, QComboBox, QLineEdit, QPlainTextEdit
 )
 
 from bioinformatik import Markierung, Base, Sequenz
@@ -162,6 +161,31 @@ class SequenzDialog(QDialog):
         self.close()
 
 
+class NeueSequenzDialog(QDialog):
+
+    sequenzHinzu = Signal(str, str)
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        vbox = QVBoxLayout(self)
+        self.setLayout(vbox)
+        self._le_name = QLineEdit()
+        self._te_sequenztext = QPlainTextEdit()
+        self._btn_ok = QPushButton('OK')
+        self._btn_ok.clicked.connect(self.fertig)
+        vbox.addWidget(QLabel('Name:'))
+        vbox.addWidget(self._le_name)
+        vbox.addWidget(QLabel('Sequenztext:'))
+        vbox.addWidget(self._te_sequenztext)
+        vbox.addWidget(self._btn_ok)
+
+    def fertig(self):
+        name = self._le_name.text()
+        text = self._te_sequenztext.document().toRawText()
+        self.sequenzHinzu.emit(name, text)
+        self.close()
+
+
 class LinealDialog(QDialog):
 
     basenVerstecken = Signal(range)
@@ -205,121 +229,6 @@ class LinealDialog(QDialog):
         self.close()
 
     def enttarnen(self):
-        self.basenEnttarnen.emit(range(self.column, self.column+self._sb_verstecken.value()))
+        self.basenEnttarnen.emit(range(self.column, self.column+self._sb_enttarnen.value()))
         self.close()
 
-
-class NeueSequenzDialog(QDialog):
-
-    sequenzHinzu = Signal(str, str)
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        vbox = QVBoxLayout(self)
-        self.setLayout(vbox)
-        self._le_name = QLineEdit()
-        self._te_sequenztext = QPlainTextEdit()
-        self._btn_ok = QPushButton('OK')
-        self._btn_ok.clicked.connect(self.fertig)
-        vbox.addWidget(QLabel('Name:'))
-        vbox.addWidget(self._le_name)
-        vbox.addWidget(QLabel('Sequenztext:'))
-        vbox.addWidget(self._te_sequenztext)
-        vbox.addWidget(self._btn_ok)
-
-    def fertig(self):
-        name = self._le_name.text()
-        text = self._te_sequenztext.document().toRawText()
-        self.sequenzHinzu.emit(name, text)
-        self.close()
-
-
-class MarkierungenVerwaltenDialog(QDialog):
-
-    markierungEntfernen = Signal(Markierung)
-    markierungFarbeSetzen = Signal(Markierung, str)
-    markierungUmbenennen = Signal(Markierung, str)
-    markierungHinzu = Signal(Markierung)
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.model = parent.sequenzmodel()
-        self.markierungen = self.model.markierungen()
-        vbox = QVBoxLayout()
-        self.setLayout(vbox)
-        btn_plus = QPushButton('+')
-        btn_plus.clicked.connect(self._markierungAnhaengen)
-        btn_plus.setFixedWidth(40)
-        btn_fertig = QPushButton('Fertig')
-        btn_fertig.clicked.connect(self.close)
-        btn_fertig.setFixedWidth(40)
-
-        self._frame = QWidget()
-        self._vboxframe = QVBoxLayout()
-        self._frame.setLayout(self._vboxframe)
-
-        vbox.addWidget(QLabel('Keine gleichen Namen verwenden!'))
-        vbox.addWidget(btn_plus)
-        vbox.addWidget(self._frame)
-        vbox.addWidget(btn_fertig)
-
-        for markierung in self.markierungen:
-            mw = MarkierungWidget(self._frame, markierung)
-            self._vboxframe.addWidget(mw)
-            mw.markierungRemoved.connect(self._markierungEntfernen)
-            mw.markierungFarbeChanged.connect(self.markierungFarbeSetzen.emit)
-            mw.markierungNameChanged.connect(self.markierungUmbenennen.emit)
-
-    def _markierungAnhaengen(self):
-        farbe = "#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)])
-        markierung = Markierung(f'Unbenannt{farbe}',farbe)
-        self.markierungHinzu.emit(markierung)
-        mw = MarkierungWidget(self._frame, markierung)
-        mw.markierungRemoved.connect(self._markierungEntfernen)
-        mw.markierungFarbeChanged.connect(self.markierungFarbeSetzen.emit)
-        mw.markierungNameChanged.connect(self.markierungUmbenennen.emit)
-        self._vboxframe.addWidget(mw)
-
-    def _markierungEntfernen(self, mw):
-        self.markierungEntfernen.emit(mw.markierung)
-        mw.setParent(None)
-
-    def closeEvent(self, arg__1):
-        return super().closeEvent(arg__1)
-
-
-class MarkierungWidget(QWidget):
-
-    markierungRemoved = Signal(Markierung)
-    markierungFarbeChanged = Signal(Markierung, str)
-    markierungNameChanged = Signal(Markierung, str)
-
-    def __init__(self, parent, markierung):
-        super().__init__(parent)
-        self.markierung = markierung
-        hbox = QHBoxLayout()
-        self.setLayout(hbox)
-        self._le_beschreibung = QLineEdit(markierung.beschreibung())
-        self._le_beschreibung.editingFinished.connect(self._beschreibungAktualisieren)
-        hbox.addWidget(self._le_beschreibung)
-
-        self._farbchooserbutton = QPushButton('Farbe wählen')
-        self._farbchooserbutton.clicked.connect(self._farbauswahl)
-        self._farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe()}; padding: 5')
-        hbox.addWidget(self._farbchooserbutton)
-
-        entfernebutton = QPushButton('-')
-        entfernebutton.clicked.connect(self._markierungEntfernen)
-        hbox.addWidget(entfernebutton)
-
-    def _beschreibungAktualisieren(self, *args):
-        self.markierungNameChanged.emit(self.markierung, self._le_beschreibung.text())
-
-    def _farbauswahl(self):
-        farbe = QColorDialog.getColor(self.markierung.farbe())
-        if farbe:
-            self.markierungFarbeChanged.emit(self.markierung, farbe.name())
-            self._farbchooserbutton.setStyleSheet(f'background-color:{farbe.name()};')
-
-    def _markierungEntfernen(self):
-        self.markierungRemoved.emit(self)

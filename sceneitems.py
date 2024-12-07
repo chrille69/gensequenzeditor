@@ -30,7 +30,7 @@ class SequenzItem(QGraphicsRectItem):
         self.setHandlesChildEvents(False)
 
     def addName(self, x: int, y: int):
-        SequenznameItem(self, x, y, self.kurzName(), sequenznamewidth)
+        SequenznameItem(self, x, y, self._sequenz)
 
     def addBase(self, x: int, y: int, base: Base, versteckt: bool):
         BaseItem(self, x, y, base, versteckt)
@@ -40,16 +40,6 @@ class SequenzItem(QGraphicsRectItem):
 
     def sequenz(self) -> Sequenz:
         return self._sequenz
-
-    def kurzName(self) -> str:
-        txt = self._sequenz.name()
-        w = seqfm.horizontalAdvance(txt)
-        while w > sequenznamewidth:
-            txt = txt[:-1]
-            w = seqfm.horizontalAdvance(txt)
-        if self._sequenz.name() != txt:
-            txt = txt[:-3]+'...'
-        return txt
 
 
 class LinealItem(QGraphicsRectItem):
@@ -66,16 +56,34 @@ class LinealItem(QGraphicsRectItem):
 
 class SequenznameItem(QGraphicsRectItem):
 
-    def __init__(self, parent, x: int, y: int, text: str, width: int):
-        super().__init__ (x, y, width, basenlaenge, parent)
+    def __init__(self, parent, x: int, y: int, sequenz: Sequenz):
+        super().__init__ (x, y, sequenznamewidth, basenlaenge, parent)
+        self._x = x
+        self._y = y
+        self._sequenz = sequenz
         self.setBrush(Qt.NoBrush)
         self.setPen(Qt.NoPen)
-        gtxt = QGraphicsSimpleTextItem(text, parent)
-        gtxt.setFont(seqfont)
-        w = seqfm.horizontalAdvance(text)
-        gtxt.setPos(x+sequenznamewidth-w, y+basenlaenge/2-seqfm.height()/2)
-
+        self.gtxt = QGraphicsSimpleTextItem(parent)
+        self.gtxt.setFont(seqfont)
+        self.setName()
+        self._sequenz.namechanged.connect(self.setName)
         self.setAcceptHoverEvents(True)
+
+    def setName(self):
+        text = self.kurzName()
+        self.gtxt.setText(text)
+        w = seqfm.horizontalAdvance(text)
+        self.gtxt.setPos(self._x+sequenznamewidth-w, self._y+basenlaenge/2-seqfm.height()/2)
+
+    def kurzName(self) -> str:
+        txt = self._sequenz.name()
+        w = seqfm.horizontalAdvance(txt)
+        while w > sequenznamewidth:
+            txt = txt[:-1]
+            w = seqfm.horizontalAdvance(txt)
+        if self._sequenz.name() != txt:
+            txt = txt[:-3]+'...'
+        return txt
 
     def hoverEnterEvent(self, event):
         self.setBrush(brushhighlight)
@@ -92,14 +100,10 @@ class BaseItem(QGraphicsRectItem):
     def __init__(self, parent, x: int, y: int, base: Base, versteckt: bool):
         super().__init__(x, y, basenlaenge, basenlaenge, parent)
         self._base = base
+        self._versteckt = versteckt
         self.brush = Qt.NoBrush
         char = base.char()
-        boxfarbe = base.getBoxFarbe()
-        if boxfarbe:
-            self.brush = QColor(boxfarbe)
-        if versteckt:
-            self.brush = brushversteckt
-        self.setBrush(self.brush)
+        self.setBoxfarbe()
         self.setPen(Qt.NoPen)
         gchar = QGraphicsSimpleTextItem(char, parent)
         gchar.setFont(basefont)
@@ -108,7 +112,18 @@ class BaseItem(QGraphicsRectItem):
         gchar.setPos(x+basenlaenge/2-gcharw/2, y+basenlaenge/2-gcharh/2)
         gchar.setBrush(QColor(base.getCharFarbe()))
         self.setAcceptHoverEvents(True)
+        base.changed.connect(self.setBoxfarbe)
 
+    def setBoxfarbe(self):
+        boxfarbe = self._base.getBoxFarbe()
+        if boxfarbe:
+            self.brush = QColor(boxfarbe)
+        else:
+            self.brush = Qt.NoBrush
+        if self._versteckt:
+            self.brush = brushversteckt
+        self.setBrush(self.brush)
+        
     def hoverEnterEvent(self, event):
         self.setBrush(brushhighlight)
 
@@ -174,19 +189,21 @@ class MarkierungItem(QGraphicsRectItem):
         self.farbe = QColor(markierung.farbe())
         self.setPen(Qt.NoPen)
         self.setBrush(self.farbe)
-        markierungColorItem = MarkierungColorItem(x, y, laenge, markierung, self)
-        markierungNameItem = MarkierungNameItem(markierung, self)
-        markierungNameItem.setPos(x+laenge+abstand, y)
+        self.markierungColorItem = MarkierungColorItem(x, y, laenge, markierung, self)
+        self.markierungNameItem = MarkierungNameItem(markierung, self)
+        self.markierungNameItem.setPos(x+laenge+abstand, y)
 
 
 class MarkierungColorItem(QGraphicsRectItem):
     def __init__(self, x: int, y: int, laenge: int, markierung: Markierung, parent: MarkierungItem):
         super().__init__(x, y, laenge, laenge, parent)
         self.markierung = markierung
-        self.farbe = QColor(markierung.farbe())
         self.setPen(Qt.NoPen)
-        self.setBrush(self.farbe)
+        self.setFarbe()
+        self.markierung.farbeChanged.connect(self.setFarbe)
 
+    def setFarbe(self):
+        self.setBrush(QColor(self.markierung.farbe()))
 
 class MarkierungNameItem(QGraphicsSimpleTextItem):
 
@@ -196,6 +213,10 @@ class MarkierungNameItem(QGraphicsSimpleTextItem):
         self.backgroundBrush = Qt.NoBrush
         self.setFont(seqfont)
         self.setAcceptHoverEvents(True)
+        self.markierung.nameChanged.connect(self.setName)
+
+    def setName(self):
+        self.setText(self.markierung.beschreibung())
 
     def paint(self, painter, option, widget):
         painter.fillRect(option.rect, self.backgroundBrush)
