@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QHBoxLayout, QLineEdit
 )
 
-VERSION = "1.8"
+VERSION = "2.0"
 from bioinformatik import Markierung, Sequenz, Base
 from markierungenWidget import MarkierungenVerwalten
 from sequenzenscene import SequenzenScene
