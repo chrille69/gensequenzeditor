@@ -4,33 +4,32 @@ from bioinformatik import Sequenz, Markierung, Base
 from sequenzenmodel import SequenzenModel
 
 
-class InsertSequenzCommand(QUndoCommand):
+class AddSequenzenCommand(QUndoCommand):
 
-    def __init__(self, model:SequenzenModel, name: str, txt: str):
-        super(InsertSequenzCommand, self).__init__('Sequenz hinzu '+name)
+    def __init__(self, model:SequenzenModel, sequenzen: list[Sequenz]):
+        super(AddSequenzenCommand, self).__init__('Sequenzen hinzu')
         self.model = model
-        self.sequenz = Sequenz(name)
-        self.sequenz.importBasenString(txt)
+        self.sequenzen = sequenzen
 
     def redo(self):
-        self.model.addSequenzen([self.sequenz])
+        self.model.addSequenzen(self.sequenzen)
 
     def undo(self):
-        self.model.removeSequenz(self.sequenz)
+        self.model.removeSequenzen(self.sequenzen)
 
 
-class RemoveSequenzCommand(QUndoCommand):
+class RemoveSequenzenCommand(QUndoCommand):
 
-    def __init__(self, model: SequenzenModel, sequenz: Sequenz):
-        super(RemoveSequenzCommand, self).__init__('Sequenz entfernt '+sequenz.name())
+    def __init__(self, model: SequenzenModel, sequenzen: list[Sequenz]):
+        super(RemoveSequenzenCommand, self).__init__('Sequenzen entfernt')
         self.model = model
-        self.sequenz = sequenz
+        self.sequenzen = sequenzen
 
     def redo(self):
-        self.model.removeSequenz(self.sequenz)
+        self.model.removeSequenzen([self.sequenzen])
 
     def undo(self):
-        self.model.addSequenzen([self.sequenz])
+        self.model.addSequenzen([self.sequenzen])
 
 
 class RenameSequenzCommand(QUndoCommand):
@@ -207,6 +206,7 @@ class VerstecktCommand(QUndoCommand):
     def undo(self):
         self.model.removeVersteckt(self.versteckt)
 
+
 class EnttarnenCommand(QUndoCommand):
 
     def __init__(self, model: SequenzenModel, enttarnen: list[bool]):
@@ -219,3 +219,18 @@ class EnttarnenCommand(QUndoCommand):
 
     def undo(self):
         self.model.addVersteckt(self.enttarnen)
+
+
+class SetAllCommand(QUndoCommand):
+
+    def __init__(self, model: SequenzenModel, *all: tuple[list[Sequenz], list[Markierung], list[bool]]):
+        super(SetAllCommand, self).__init__('Enttarnen')
+        self.model = model
+        self.allneu = all
+        self.allalt = self.model.getAllCopy()
+
+    def redo(self):
+        self.model.setAll(*self.allneu)
+
+    def undo(self):
+        self.model.setAll(*self.allalt)

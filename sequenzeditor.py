@@ -17,7 +17,7 @@ from sequenzenscene import SequenzenScene
 from sequenzenmodel import SequenzenModel
 from dialoge import NeueSequenzDialog, BaseDialog, SequenzDialog, LinealDialog
 from commands import (RemoveMarkierungCommand, changeColorMarkierungCommand, changeBeschreibungMarkierungCommand, AddMarkierungCommand,
-                      RenameSequenzCommand, AminosaeureSequenzCommand, RemoveSequenzCommand, InsertSequenzCommand,
+                      RenameSequenzCommand, AminosaeureSequenzCommand, RemoveSequenzenCommand, AddSequenzenCommand,
                       InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand, VerstecktCommand, EnttarnenCommand, MarkiereBasenCommand
 )
 
@@ -59,18 +59,25 @@ class SequenzEditor(QMainWindow):
         self._undoStack = QUndoStack(self)
 
         neuAction = QAction('&Neu', self)
+        neuAction.setIcon(QIcon(':/images/new.svg'))
         neuAction.setShortcut(QKeySequence.New)
         oeffnenAction = QAction('&Öffnen', self)
+        oeffnenAction.setIcon(QIcon(':/images/open.svg'))
         oeffnenAction.setShortcut(QKeySequence.Open)
         speichernAction = QAction('&Speichern', self)
+        speichernAction.setIcon(QIcon(':/images/saveas.svg'))
         speichernAction.setShortcut(QKeySequence.Save)
         fastaimportAction = QAction('&FASTA importieren', self)
+        fastaimportAction.setIcon(QIcon(':/images/import.svg'))
         fastaimportAction.setShortcut(Qt.CTRL | Qt.Key_I)
         pngexportAction = QAction('&PNG exportieren', self)
+        pngexportAction.setIcon(QIcon(':/images/image.svg'))
         pngexportAction.setShortcut(Qt.CTRL | Qt.Key_P)
         beendenAction = QAction('&Beenden', self)
+        beendenAction.setIcon(QIcon(':/images/quit.svg'))
         beendenAction.setShortcut(Qt.CTRL | Qt.Key_Q)
         neuesequenzAction = QAction('Neue &Sequenz anhängen', self)
+        neuesequenzAction.setIcon(QIcon(':/images/listadd.svg'))
         neuesequenzAction.setShortcut(QKeySequence.SelectAll)
         undoAction = self._undoStack.createUndoAction(self)
         undoAction.setIcon(QIcon(':/images/undo.svg'))
@@ -108,6 +115,7 @@ class SequenzEditor(QMainWindow):
         tools.addSeparator()
         tools.addWidget(self.cb_zeilenumbrechen)
         tools.addSeparator()
+        tools.addWidget(QLabel('Spaltenzahl'))
         tools.addWidget(self.sb_spaltenzahl)
         tools.addSeparator()
         tools.addWidget(self.cb_verstecktanzeigen)
@@ -169,6 +177,45 @@ class SequenzEditor(QMainWindow):
         self._ungespeichert = False
         return True
 
+    def paintedTrigger(self):
+        r = self._grafik.scene().itemsBoundingRect()
+        self._grafik.scene().setSceneRect(r)
+        self._ungespeichert = True
+
+    def fileNew(self):
+        if not self.ungespeichertFortfahren('Neue Datei beginnen'):
+            return
+        self._sequenzmodel.setAll()
+
+    def fileOpen(self):
+        if not self.ungespeichertFortfahren('Neue Datei laden'):
+            return
+        filename = QFileDialog.getOpenFileName(self, "Datei öffnen", filter='JSON-Dateien (*.json);;Alle Dateien (*.*)')[0]
+        if not filename:
+            return
+        try:
+            self.importJSONFile(filename)
+        except Exception as e:
+            self.Fehlermeldung(str(e))
+
+    def importJSONFile(self, filename: str, ungespeichert: bool = True) -> None:
+        with open(filename) as file:
+            dict = json.load(file, cls=SequenzenDecoder)
+        sequenzen = dict['sequenzen']
+        versteckt = dict['versteckt']
+        markierungen = dict['markierungen']
+        mtxtdict = {}
+        for m in markierungen:
+            mtxtdict[m._beschreibung]=m
+        for s in sequenzen:
+            for b in s.basen():
+                if b._mtxt:
+                    b.setMarkierung(mtxtdict[b._mtxt])
+                    del b._mtxt
+        self._sequenzmodel.setAll(sequenzen, markierungen, versteckt)
+        self._ungespeichert = ungespeichert
+        return
+
     def importFasta(self):
         filename = QFileDialog.getOpenFileName(self, "Open Image")[0]
         if not filename:
@@ -196,47 +243,9 @@ class SequenzEditor(QMainWindow):
             seq = Sequenz(name)
             seq.importBasenString(text)
             seqarr.append(seq)
-            self._sequenzmodel.addSequenzen(seqarr)
+            self._undoStack.push(AddSequenzenCommand(self._sequenzmodel, seqarr))
         except Exception as e:
             self.Fehlermeldung(str(e))
-
-    def paintedTrigger(self):
-        r = self._grafik.scene().itemsBoundingRect()
-        self._grafik.scene().setSceneRect(r)
-        self._ungespeichert = True
-
-    def fileNew(self):
-        if not self.ungespeichertFortfahren('Neue Datei beginnen'):
-            return
-        self._sequenzmodel.setAll()
-
-    def fileOpen(self):
-        if not self.ungespeichertFortfahren('Neue Datei laden'):
-            return
-        filename = QFileDialog.getOpenFileName(self, "Datei öffnen", filter='JSON-Dateien (*.json);;Alle Dateien (*.*)')[0]
-        if not filename:
-            return
-        try:
-            self.importJSONFile(filename)
-        except Exception as e:
-            self.Fehlermeldung(str(e))
-
-    def importJSONFile(self, filename: str) -> None:
-        with open(filename) as file:
-            dict = json.load(file, cls=SequenzenDecoder)
-        sequenzen = dict['sequenzen']
-        versteckt = dict['versteckt']
-        markierungen = dict['markierungen']
-        mtxtdict = {}
-        for m in markierungen:
-            mtxtdict[m._beschreibung]=m
-        for s in sequenzen:
-            for b in s.basen():
-                if b._mtxt:
-                    b.setMarkierung(mtxtdict[b._mtxt])
-                    del b._mtxt
-        self._sequenzmodel.setAll(sequenzen, markierungen, versteckt)
-        return
 
     def fileSave(self):
         filename = QFileDialog.getSaveFileName(self, "Datei speichern", filter='JSON-Dateien (*.json);;Alle Dateien (*.*)')[0]
@@ -287,8 +296,8 @@ class SequenzEditor(QMainWindow):
     def base_sequenz_hinzu(self, base: Base, seqtext: str):
         self._undoStack.push(InsertBaseCommand(base, seqtext))
 
-    def sequenz_hinzu(self, name: str, text: str):
-        self._undoStack.push(InsertSequenzCommand(self.sequenzmodel(), name, text))
+    def sequenz_hinzu(self, sequenz: Sequenz):
+        self._undoStack.push(AddSequenzenCommand(self.sequenzmodel(), [sequenz]))
 
     def sequenz_umbenennen(self, sequenz: Sequenz, name: str):
         self._undoStack.push(RenameSequenzCommand(sequenz, name))
@@ -297,7 +306,7 @@ class SequenzEditor(QMainWindow):
         self._undoStack.push(AminosaeureSequenzCommand(sequenz))
 
     def sequenz_entfernen(self, sequenz: Sequenz):
-        self._undoStack.push(RemoveSequenzCommand(self.sequenzmodel(), sequenz))
+        self._undoStack.push(RemoveSequenzenCommand(self.sequenzmodel(), sequenz))
 
     def basen_verstecken(self, bereich: range):
         self._undoStack.push(VerstecktCommand(self.sequenzmodel(), bereich))
@@ -391,7 +400,7 @@ if __name__ == "__main__":
     filenames = sys.argv[1:2]
     if filenames:
         try:
-            d.importJSONFile(filenames[0])
+            d.importJSONFile(filenames[0], False)
         except Exception as e:
             print(str(e))
 

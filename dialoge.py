@@ -163,7 +163,7 @@ class SequenzDialog(QDialog):
 
 class NeueSequenzDialog(QDialog):
 
-    sequenzHinzu = Signal(str, str)
+    sequenzHinzu = Signal(Sequenz)
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -182,7 +182,9 @@ class NeueSequenzDialog(QDialog):
     def fertig(self):
         name = self._le_name.text()
         text = self._te_sequenztext.document().toRawText()
-        self.sequenzHinzu.emit(name, text)
+        sequenz = Sequenz(name)
+        sequenz.importBasenString(text)
+        self.sequenzHinzu.emit(sequenz)
         self.close()
 
 

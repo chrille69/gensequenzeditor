@@ -6,5 +6,14 @@
         <file alias="delete.svg">resources\delete.svg</file>
         <file alias="undo.svg">resources\undo.svg</file>
         <file alias="redo.svg">resources\redo.svg</file>
+        <file alias="quit.svg">resources\quit.svg</file>
+        <file alias="image.svg">resources\image.svg</file>
+        <file alias="import.svg">resources\import.svg</file>
+        <file alias="listadd.svg">resources\listadd.svg</file>
+        <file alias="new.svg">resources\new.svg</file>
+        <file alias="newseq.svg">resources\newseq.svg</file>
+        <file alias="open.svg">resources\open.svg</file>
+        <file alias="save.svg">resources\save.svg</file>
+        <file alias="saveas.svg">resources\saveas.svg</file>
     </qresource>
 </RCC>

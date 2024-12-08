@@ -25,6 +25,9 @@ class SequenzenModel(QObject):
     def versteckt(self) -> list[bool]:
         return self._versteckt
 
+    def getAllCopy(self):
+        return self._sequenzen.copy(), self._markierungen.copy(), self.versteckt.copy()
+    
     def setAll(self, sequenzen: list[Sequenz] = None, markierungen: list[Markierung] = None, versteckt: list[range] = None):
         self._sequenzen = sequenzen or []
         self._markierungen = markierungen or []
@@ -36,8 +39,9 @@ class SequenzenModel(QObject):
         self._sequenzen += seqarr
         self.modelchanged.emit()
 
-    def removeSequenz(self, sequenz: Sequenz):
-        self._sequenzen.remove(sequenz)
+    def removeSequenzen(self, sequenzen: list[Sequenz]):
+        for sequenz in sequenzen:
+            self._sequenzen.remove(sequenz)
         self.modelchanged.emit()
 
     def addMarkierungen(self, markarr: list[Markierung]):
