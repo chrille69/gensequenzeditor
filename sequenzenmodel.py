@@ -7,8 +7,9 @@ log = logging.getLogger(__name__)
 
 class SequenzenModel(QObject):
 
-    modelchanged = Signal()
+    sequenzenChanged = Signal()
     markierungenChanged = Signal()
+    verstecktChanged = Signal()
 
     def __init__(self, parent: QObject, sequenzen: list[Sequenz] = None, markierungen: list[Markierung] = None, versteckt: list[range] = None):
         super().__init__(parent)
@@ -32,17 +33,17 @@ class SequenzenModel(QObject):
         self._sequenzen = sequenzen or []
         self._markierungen = markierungen or []
         self._versteckt = versteckt or []
-        self.modelchanged.emit()
+        self.sequenzenChanged.emit()
         self.markierungenChanged.emit()
 
     def addSequenzen(self, seqarr: list[Sequenz]):
         self._sequenzen += seqarr
-        self.modelchanged.emit()
+        self.sequenzenChanged.emit()
 
     def removeSequenzen(self, sequenzen: list[Sequenz]):
         for sequenz in sequenzen:
             self._sequenzen.remove(sequenz)
-        self.modelchanged.emit()
+        self.sequenzenChanged.emit()
 
     def addMarkierungen(self, markarr: list[Markierung]):
         self._markierungen += markarr
@@ -54,9 +55,9 @@ class SequenzenModel(QObject):
 
     def addVersteckt(self, arr: list[range]):
         self._versteckt += arr
-        self.modelchanged.emit()
+        self.verstecktChanged.emit()
 
     def removeVersteckt(self, arr: list[range]):
         for col in arr:
             col in self._versteckt and self._versteckt.remove(col)
-        self.modelchanged.emit()
+        self.verstecktChanged.emit()

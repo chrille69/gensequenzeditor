@@ -4,7 +4,7 @@ from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
 
 from PySide6.QtWidgets import QGraphicsScene
-from sceneitems import basenlaenge, sequenznamewidth, SequenzItem, LinealItem
+from sceneitems import basenlaenge, sequenznamewidth, SequenzItem, LinealItem, MarkierungItem
 from bioinformatik import Sequenz, Markierung, Base
 from sequenzenmodel import SequenzenModel
 
@@ -32,6 +32,7 @@ class SequenzenScene(QGraphicsScene):
     fontLineal = ('Courier', 12, 'bold')
     rahmendicke = 20
     abstandMarkierungen = 3
+    markierunglaenge = 50
 
     def __init__(self, parent, sequenzenmodel: SequenzenModel, umbruch: bool = True, spaltenzahl: int = 50, zeigeversteckt: bool = False):
         super().__init__(parent)
@@ -39,14 +40,18 @@ class SequenzenScene(QGraphicsScene):
         self._umbruch = umbruch
         self._spaltenzahl = spaltenzahl
         self._zeigeversteckt = zeigeversteckt
+        self.vorgängerMarkierungItem: MarkierungItem = None
 
-        self._ystart = self.rahmendicke
+
+        self._ystart = self.rahmendicke+2*basenlaenge
         self._maxlen = 0
 
         self._linealitem = None
         self._sequenzitems = {}
 
-        self._model.modelchanged.connect(self.allesNeuZeichnen)
+        self._model.sequenzenChanged.connect(self.allesNeuZeichnen)
+        self._model.verstecktChanged.connect(self.allesNeuZeichnen)
+        self._model.markierungenChanged.connect(self._markierungenZeichnen)
         self.setBackgroundBrush(Qt.white)
         self.allesNeuZeichnen()
 
@@ -57,6 +62,7 @@ class SequenzenScene(QGraphicsScene):
 
         self._linealitem = None
         self._sequenzitems = {}
+        self.vorgängerMarkierungItem = None
         self.clear()
 
         log.debug('_emptyCanvas Ende')
@@ -75,6 +81,7 @@ class SequenzenScene(QGraphicsScene):
         log.debug(self.sender())
 
         self._emptyCanvas()
+        self._markierungenZeichnen()
         self._maxlenBerechnen()
         self._verstecktBemerkungZeichnen()
         self._linealZeichnen()
@@ -85,15 +92,13 @@ class SequenzenScene(QGraphicsScene):
             return
         
         for sequenz in self._model.sequenzen():
-            self._sequenzZeichnen(sequenz, True)
+            self._sequenzZeichnen(sequenz)
             sequenz.basenchanged.connect(self._sequenzZeichnen)
 
         self.painted.emit()
         log.debug('allesNeuZeichnen Ende')
 
-
-
-    def _sequenzZeichnen(self, sequenz: Sequenz, nopaintedemit: bool = False):
+    def _sequenzZeichnen(self, sequenz: Sequenz):
         """Zeichnet eine Sequenz.
 
         * seqidx: Die Nummer im Sequenzarray self.sequenzen
@@ -117,7 +122,7 @@ class SequenzenScene(QGraphicsScene):
 
         if not sequenz.basen():
             self._sequenznameZeichnen(sequenzitem, 0, row)
-            nopaintedemit or self.painted.emit()
+            self.painted.emit()
             return
 
         rotelinieschonda = False
@@ -145,7 +150,7 @@ class SequenzenScene(QGraphicsScene):
             col += 1
             rotelinieschonda = False
 
-        nopaintedemit or self.painted.emit()
+        self.painted.emit()
 
     def _linealZeichnen(self):
         """Zeichnet das Lineal über den Sequenzen"""
@@ -175,16 +180,23 @@ class SequenzenScene(QGraphicsScene):
 
         if not self._model.versteckt():
             return
-        abstand = self.abstandMarkierungen
-        x = self.rahmendicke+sequenznamewidth+basenlaenge
-        y = self._ystart
         objektid = self.addText('Es gibt versteckte Spalten')
         objektid.setDefaultTextColor(Qt.black)
-        objektid.setPos(x,y)
+        objektid.setPos(basenlaenge,self.rahmendicke)
 
-        x = self.rahmendicke+sequenznamewidth
-        objektid = self.addLine(x, y, x, y+basenlaenge, QColor('red'))
-        self._ystart += basenlaenge+abstand
+    def _markierungenZeichnen(self):
+        while self.vorgängerMarkierungItem:
+            markierungitem = self.vorgängerMarkierungItem
+            self.vorgängerMarkierungItem = self.vorgängerMarkierungItem.vorgänger
+            self.removeItem(markierungitem)
+    
+        for markierung in self._model.markierungen():
+            self.vorgängerMarkierungItem = self._markierungZeichnen(self.vorgängerMarkierungItem, markierung)
+
+    def _markierungZeichnen(self, vorgänger: MarkierungItem, markierung: Markierung):
+        markierungitem = MarkierungItem(vorgänger, markierung)
+        self.addItem(markierungitem)
+        return markierungitem
 
 
 #################################################################

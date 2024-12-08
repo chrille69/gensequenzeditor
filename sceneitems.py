@@ -1,7 +1,7 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPen
-from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsSimpleTextItem
+from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsTextItem, QGraphicsSimpleTextItem
 
 from bioinformatik import Base, Sequenz, Markierung
 
@@ -183,52 +183,39 @@ class RotelinieItem(QGraphicsLineItem):
 
 class MarkierungItem(QGraphicsRectItem):
 
-    def __init__(self, x: int, y: int, laenge: int, abstand: int, markierung: Markierung):
-        super().__init__(x, y, laenge, laenge)
+    def __init__(self, vorgänger: 'MarkierungItem', markierung: Markierung):
+        super().__init__()
         self.markierung = markierung
-        self.farbe = QColor(markierung.farbe())
+        self.vorgänger = vorgänger
+        self.setRect(0, 0, basenlaenge, 20)
         self.setPen(Qt.NoPen)
-        self.setBrush(self.farbe)
-        self.markierungColorItem = MarkierungColorItem(x, y, laenge, markierung, self)
-        self.markierungNameItem = MarkierungNameItem(markierung, self)
-        self.markierungNameItem.setPos(x+laenge+abstand, y)
-
-
-class MarkierungColorItem(QGraphicsRectItem):
-    def __init__(self, x: int, y: int, laenge: int, markierung: Markierung, parent: MarkierungItem):
-        super().__init__(x, y, laenge, laenge, parent)
-        self.markierung = markierung
-        self.setPen(Qt.NoPen)
+        self.nameItem = QGraphicsTextItem(self)
+        self.nameItem.setDefaultTextColor(QColor('black'))
+        self.nameItem.setFont(seqfont)
+        self.nameItem.setPos(basenlaenge, 0)
         self.setFarbe()
+        self.setName()
+        self.setX(True)
         self.markierung.farbeChanged.connect(self.setFarbe)
+        self.markierung.nameChanged.connect(self.setName)
+        if self.vorgänger:
+            self.vorgänger.nameItem.document().contentsChanged.connect(self.setX)
+    
+    def sceneRight(self):
+        rect = self.sceneBoundingRect()
+        textrect = self.nameItem.boundingRect()
+        return rect.x() + rect.width() + basenlaenge + textrect.width()
+    
+    def setX(self, nosignal: bool = False):
+        x = sequenznamewidth+basenlaenge
+        if self.vorgänger:
+            x = self.vorgänger.sceneRight()
+        self.setPos(x, basenlaenge)
+        nosignal or self.nameItem.document().contentsChanged.emit()
 
     def setFarbe(self):
         self.setBrush(QColor(self.markierung.farbe()))
 
-class MarkierungNameItem(QGraphicsSimpleTextItem):
-
-    def __init__(self, markierung: Markierung, parent: MarkierungItem):
-        super().__init__(markierung.beschreibung(), parent)
-        self.markierung = markierung
-        self.backgroundBrush = Qt.NoBrush
-        self.setFont(seqfont)
-        self.setAcceptHoverEvents(True)
-        self.markierung.nameChanged.connect(self.setName)
-
     def setName(self):
-        self.setText(self.markierung.beschreibung())
+        self.nameItem.setPlainText(self.markierung.beschreibung())
 
-    def paint(self, painter, option, widget):
-        painter.fillRect(option.rect, self.backgroundBrush)
-        return super().paint(painter, option, widget)
-
-    def hoverEnterEvent(self, event):
-        self.backgroundBrush = brushhighlight
-        self.update()
-
-    def hoverLeaveEvent(self, event):
-        self.backgroundBrush = Qt.NoBrush
-        self.update()
-
-    def mousePressEvent(self, *args):
-        self.scene().markierungNameClicked.emit(self.markierung)
