@@ -1,7 +1,7 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPen
-from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsTextItem, QGraphicsSimpleTextItem
+from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsTextItem, QGraphicsSimpleTextItem, QGraphicsItem
 
 from bioinformatik import Base, Sequenz, Markierung
 
@@ -189,6 +189,7 @@ class MarkierungItem(QGraphicsRectItem):
         self.vorgänger = vorgänger
         self.setRect(0, 0, basenlaenge, 20)
         self.setPen(Qt.NoPen)
+        self.setFlag(QGraphicsItem.ItemIsMovable, True)
         self.nameItem = QGraphicsTextItem(self)
         self.nameItem.setDefaultTextColor(QColor('black'))
         self.nameItem.setFont(seqfont)
@@ -202,11 +203,15 @@ class MarkierungItem(QGraphicsRectItem):
             self.vorgänger.nameItem.document().contentsChanged.connect(self.setX)
     
     def sceneRight(self):
+        "Gibt den x-Wert der rechten Kante des Items zurück."
+
         rect = self.sceneBoundingRect()
         textrect = self.nameItem.boundingRect()
         return rect.x() + rect.width() + basenlaenge + textrect.width()
     
     def setX(self, nosignal: bool = False):
+        "Setzt auf der Grundlage des Vorgängers die x-Position."
+
         x = sequenznamewidth+basenlaenge
         if self.vorgänger:
             x = self.vorgänger.sceneRight()
@@ -214,8 +219,12 @@ class MarkierungItem(QGraphicsRectItem):
         nosignal or self.nameItem.document().contentsChanged.emit()
 
     def setFarbe(self):
+        "Setzt die Farbe auf Grundlage der Markerung."
+
         self.setBrush(QColor(self.markierung.farbe()))
 
     def setName(self):
+        "Setzt den Text auf Grundlage der Beschreibung der Markierung."
+
         self.nameItem.setPlainText(self.markierung.beschreibung())
 

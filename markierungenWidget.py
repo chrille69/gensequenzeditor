@@ -80,7 +80,7 @@ class MarkierungWidget(QWidget):
         hbox = QHBoxLayout()
         self.setLayout(hbox)
         self._le_beschreibung = QLineEdit()
-        self._le_beschreibung.textChanged.connect(self._beschreibungAktualisieren)
+        self._le_beschreibung.returnPressed.connect(self._beschreibungAktualisieren)
         hbox.addWidget(self._le_beschreibung)
 
         self._farbchooserbutton = QPushButton('Farbe wählen')

@@ -191,13 +191,8 @@ class SequenzenScene(QGraphicsScene):
             self.removeItem(markierungitem)
     
         for markierung in self._model.markierungen():
-            self.vorgängerMarkierungItem = self._markierungZeichnen(self.vorgängerMarkierungItem, markierung)
-
-    def _markierungZeichnen(self, vorgänger: MarkierungItem, markierung: Markierung):
-        markierungitem = MarkierungItem(vorgänger, markierung)
-        self.addItem(markierungitem)
-        return markierungitem
-
+            self.vorgängerMarkierungItem = MarkierungItem(self.vorgängerMarkierungItem, markierung)
+            self.addItem(self.vorgängerMarkierungItem)
 
 #################################################################
 # elementare Funktionen zum Zeichnen
