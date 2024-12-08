@@ -3,3 +3,5 @@ build
 dist
 sequenzeditor.spec
 resources.py
+darkdetect
+qdarktheme

@@ -1,13 +1,16 @@
 import random
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt, QSize
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QColorDialog,
     QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
-    QLineEdit, QWidget
+    QLineEdit, QScrollArea, QWidget
 )
 
 from sequenzenmodel import SequenzenModel
 from bioinformatik import Markierung
+
+import resources
 
 class MarkierungenVerwalten(QWidget):
 
@@ -22,25 +25,34 @@ class MarkierungenVerwalten(QWidget):
         self.model.markierungenChanged.connect(self.updateMarkierungen)
         vbox = QVBoxLayout()
         self.setLayout(vbox)
-        btn_plus = QPushButton('+')
+        btn_plus = QPushButton()
+        btn_plus.setIcon(QIcon(':/images/add.svg'))
+        btn_plus.setIconSize(QSize(25,25))
         btn_plus.clicked.connect(self._markierungAnhaengen)
         btn_plus.setFixedWidth(40)
 
+        self._scroll = QScrollArea()
         self._frame = QWidget()
+        self._frame.setFixedWidth(250)
+        self._scroll.setWidget(self._frame)
         self._vboxframe = QVBoxLayout()
+        self._vboxframe.setSizeConstraint(QHBoxLayout.SetMinimumSize)
+        self._vboxframe.addStretch(2)
         self._frame.setLayout(self._vboxframe)
 
-        vbox.addWidget(QLabel('Keine gleichen Namen verwenden!'))
         vbox.addWidget(btn_plus)
-        vbox.addWidget(self._frame)
-        vbox.addStretch(2)
+        vbox.addWidget(self._scroll)
+        vbox.addWidget(QLabel('Keine gleichen Namen verwenden!'))
 
     def updateMarkierungen(self):
         for i in reversed(range(self._vboxframe.count())): 
-            self._vboxframe.itemAt(i).widget().deleteLater()
+            item = self._vboxframe.itemAt(i)
+            if item.widget():
+                item.widget().deleteLater()
+
         for markierung in self.model.markierungen():
             mw = MarkierungWidget(markierung)
-            self._vboxframe.addWidget(mw)
+            self._vboxframe.insertWidget(0, mw, alignment=Qt.AlignTop)
             mw.markierungRemoved.connect(self._markierungEntfernen)
             mw.markierungFarbeChanged.connect(self.markierungFarbeSetzen.emit)
             mw.markierungNameChanged.connect(self.markierungUmbenennen.emit)
@@ -68,7 +80,6 @@ class MarkierungWidget(QWidget):
         hbox = QHBoxLayout()
         self.setLayout(hbox)
         self._le_beschreibung = QLineEdit()
-        self._le_beschreibung.setMaximumWidth(80)
         self._le_beschreibung.returnPressed.connect(self._beschreibungAktualisieren)
         hbox.addWidget(self._le_beschreibung)
 
@@ -77,8 +88,9 @@ class MarkierungWidget(QWidget):
         self._farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe()}; padding: 5')
         hbox.addWidget(self._farbchooserbutton)
 
-        entfernebutton = QPushButton('-')
-        entfernebutton.setMaximumWidth(25)
+        entfernebutton = QPushButton()
+        entfernebutton.setIcon(QIcon(':/images/delete.svg'))
+        entfernebutton.setIconSize(QSize(25, 25))
         entfernebutton.clicked.connect(self._markierungEntfernen)
         hbox.addWidget(entfernebutton)
 

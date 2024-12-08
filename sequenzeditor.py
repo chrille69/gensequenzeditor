@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor, QAction, QImage, QPainter, QPixmap, QIcon, QUn
 from PySide6.QtWidgets import (
     QApplication, QLabel, QMainWindow, QFileDialog, 
     QGraphicsView, QCheckBox, QToolBar, QWidget,
-    QSpinBox, QMessageBox, QHBoxLayout, QLineEdit
+    QMessageBox, QHBoxLayout, QLineEdit
 )
 
 VERSION = "1.8"
@@ -22,6 +22,8 @@ from commands import (RemoveMarkierungCommand, changeColorMarkierungCommand, cha
 )
 
 import resources
+import qdarktheme # type: ignore
+
 
 # Zum Erzeugen der exe:
 # pyinstaller.exe -F -i resources/oszli-icon.ico -w .\sequenzeditor.py
@@ -72,8 +74,10 @@ class SequenzEditor(QMainWindow):
         neuesequenzAction = QAction('Neue &Sequenz anhängen', self)
         neuesequenzAction.setShortcut(QKeySequence.SelectAll)
         undoAction = self._undoStack.createUndoAction(self)
+        undoAction.setIcon(QIcon(':/images/undo.svg'))
         undoAction.setShortcut(QKeySequence.Undo)
         redoAction = self._undoStack.createRedoAction(self)
+        redoAction.setIcon(QIcon(':/images/redo.svg'))
         redoAction.setShortcut(QKeySequence.Redo)
 
         menubar = self.menuBar()
@@ -372,9 +376,10 @@ class SequenzenDecoder(json.JSONDecoder):
 
 
 if __name__ == "__main__":
-    log.warning('Starte Sequenzeditor')
+    log.debug('Starte Sequenzeditor')
 
-    app = QApplication()
+    app = QApplication(sys.argv)
+    qdarktheme.setup_theme('auto')
     app.setWindowIcon(QIcon(QPixmap(':/images/oszli-icon.ico')))
     d = SequenzEditor()
     d.show()

@@ -2,5 +2,9 @@
 <RCC version="1.0">
     <qresource prefix="images">
         <file alias="oszli-icon.ico">resources\oszli-icon.ico</file>
+        <file alias="add.svg">resources\add.svg</file>
+        <file alias="delete.svg">resources\delete.svg</file>
+        <file alias="undo.svg">resources\undo.svg</file>
+        <file alias="redo.svg">resources\redo.svg</file>
     </qresource>
 </RCC>
