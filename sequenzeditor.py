@@ -22,7 +22,6 @@ from commands import (RemoveMarkierungCommand, changeColorMarkierungCommand, cha
 )
 
 import resources
-import qdarktheme # type: ignore
 
 
 # Zum Erzeugen der exe:
@@ -378,8 +377,14 @@ class SequenzenDecoder(json.JSONDecoder):
 if __name__ == "__main__":
     log.debug('Starte Sequenzeditor')
 
-    app = QApplication(sys.argv)
-    qdarktheme.setup_theme('auto')
+    app = QApplication(sys.argv+['-platform','windows:darkmode=1'])
+
+    try:
+        import qdarktheme # type: ignore
+        qdarktheme.setup_theme('auto')
+    except ModuleNotFoundError:
+        app.setStyle('Fusion')
+
     app.setWindowIcon(QIcon(QPixmap(':/images/oszli-icon.ico')))
     d = SequenzEditor()
     d.show()
