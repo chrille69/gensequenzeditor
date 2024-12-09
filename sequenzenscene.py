@@ -90,15 +90,17 @@ class SequenzenScene(QGraphicsScene):
             return
         
         for sequenz in self._model.sequenzen():
-            self._sequenzZeichnen(sequenz)
-            sequenz.basenchanged.connect(self._sequenzZeichnen)
+            index = self._model.sequenzen().index(sequenz)
+            maxindex = len(self._model.sequenzen())-1
+            sequenzitem = SequenzItem(sequenz, self._model.versteckt(), index, maxindex)
+            self.addItem(sequenzitem)
+            sequenzitem.setPos(0, index*basenlaenge)
+#            sequenz.basenchanged.connect(self._sequenzZeichnen)
 
         log.debug('allesNeuZeichnen Ende')
 
     def _sequenzZeichnen(self, sequenz: Sequenz):
         """Zeichnet eine Sequenz.
-
-        * seqidx: Die Nummer im Sequenzarray self.sequenzen
 
         Soll nur Aufgerufen, wenn in einer Sequenz Basen hinzugefügt
         oder entfernt wurden. Oder wenn Basen mit einer anderen Markierung

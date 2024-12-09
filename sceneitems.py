@@ -1,5 +1,7 @@
 
-from PySide6.QtCore import Qt
+from enum import Enum
+
+from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPen
 from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsTextItem, QGraphicsSimpleTextItem, QGraphicsItem
 
@@ -21,15 +23,26 @@ penhighlight = QColor('red')
 sequenznamewidth = 200
 
 
+class SichtbarModus(Enum):
+    SICHTBAR = 0
+    VOLLVERSTECKT = 1
+    HABLVERSTECKT = 2
+
 
 class SequenzItem(QGraphicsRectItem):
 
-    def __init__(self, sequenz: Sequenz, index: int = 0, maxindex: int = 0):
+    def __init__(self, sequenz: Sequenz, versteckt: list[bool], maxindex: int = 0, spaltenzahl: int = 50):
         super().__init__()
         self._sequenz = sequenz
-        self._index = index
+        self._versteckt = versteckt
+        self._spaltenzahl = spaltenzahl
         self._maxindex = maxindex
 
+        self._prevbase = None
+        for base in self._sequenz.basen():
+            isVersteckt = self._sequenz.basen().index(base) in self._versteckt
+            self._prevbase = BaseItem(self, base, self._prevbase, isVersteckt)
+    
     def addName(self, x: int, y: int):
         SequenznameItem(self, x, y, self._sequenz)
 
@@ -41,6 +54,58 @@ class SequenzItem(QGraphicsRectItem):
 
     def sequenz(self) -> Sequenz:
         return self._sequenz
+
+
+class BaseItem(QGraphicsRectItem):
+
+    def __init__(self, parent, base: Base, prevbase: Base, versteckt: bool):
+        super().__init__(parent)
+        self._base = base
+        self._prev = prevbase
+        self._versteckt = versteckt
+        self.setRect(0, 0, basenlaenge, basenlaenge)
+        self.brush = Qt.NoBrush
+        char = base.char()
+        self.setBoxfarbe()
+        self.setPen(Qt.NoPen)
+        self._gchar = QGraphicsSimpleTextItem(char, parent)
+        self._gchar.setFont(basefont)
+        self._gcharw = basefm.horizontalAdvance(char)
+        self._gcharh = basefm.height()
+        self._gchar.setBrush(QColor(base.getCharFarbe()))
+        self.setAcceptHoverEvents(True)
+        self.renewPos()
+        base.changed.connect(self.setBoxfarbe)
+
+    def nextPos(self) -> QPointF:
+        rect = self.sceneBoundingRect()
+        return QPointF(rect.x()+rect.width(), rect.y())
+    
+    def renewPos(self):
+        pos = QPointF(sequenznamewidth+basenlaenge, 5*basenlaenge)
+        if self._prev:
+            pos = self._prev.nextPos()
+        self.setPos(pos)
+        self._gchar.setPos(pos.x()+basenlaenge/2-self._gcharw/2, pos.y()+basenlaenge/2-self._gcharh/2)
+
+    def setBoxfarbe(self):
+        boxfarbe = self._base.getBoxFarbe()
+        if boxfarbe:
+            self.brush = QColor(boxfarbe)
+        else:
+            self.brush = Qt.NoBrush
+        if self._versteckt:
+            self.brush = brushversteckt
+        self.setBrush(self.brush)
+        
+    def hoverEnterEvent(self, event):
+        self.setBrush(brushhighlight)
+
+    def hoverLeaveEvent(self, event):
+        self.setBrush(self.brush)
+
+    def mousePressEvent(self, *args):
+        self.scene().baseClicked.emit(self._base)
 
 
 class LinealItem(QGraphicsRectItem):
@@ -94,45 +159,6 @@ class SequenznameItem(QGraphicsRectItem):
 
     def mousePressEvent(self, *args):
         self.scene().sequenzNameClicked.emit(self.parentItem().sequenz())
-
-
-class BaseItem(QGraphicsRectItem):
-
-    def __init__(self, parent, x: int, y: int, base: Base, versteckt: bool):
-        super().__init__(x, y, basenlaenge, basenlaenge, parent)
-        self._base = base
-        self._versteckt = versteckt
-        self.brush = Qt.NoBrush
-        char = base.char()
-        self.setBoxfarbe()
-        self.setPen(Qt.NoPen)
-        gchar = QGraphicsSimpleTextItem(char, parent)
-        gchar.setFont(basefont)
-        gcharw = basefm.horizontalAdvance(char)
-        gcharh = basefm.height()
-        gchar.setPos(x+basenlaenge/2-gcharw/2, y+basenlaenge/2-gcharh/2)
-        gchar.setBrush(QColor(base.getCharFarbe()))
-        self.setAcceptHoverEvents(True)
-        base.changed.connect(self.setBoxfarbe)
-
-    def setBoxfarbe(self):
-        boxfarbe = self._base.getBoxFarbe()
-        if boxfarbe:
-            self.brush = QColor(boxfarbe)
-        else:
-            self.brush = Qt.NoBrush
-        if self._versteckt:
-            self.brush = brushversteckt
-        self.setBrush(self.brush)
-        
-    def hoverEnterEvent(self, event):
-        self.setBrush(brushhighlight)
-
-    def hoverLeaveEvent(self, event):
-        self.setBrush(self.brush)
-
-    def mousePressEvent(self, *args):
-        self.scene().baseClicked.emit(self._base)
 
 
 class LinealtickItem(QGraphicsRectItem):
