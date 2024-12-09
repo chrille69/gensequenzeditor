@@ -24,10 +24,11 @@ sequenznamewidth = 200
 
 class SequenzItem(QGraphicsRectItem):
 
-    def __init__(self, sequenz: Sequenz):
+    def __init__(self, sequenz: Sequenz, index: int = 0, maxindex: int = 0):
         super().__init__()
         self._sequenz = sequenz
-        self.setHandlesChildEvents(False)
+        self._index = index
+        self._maxindex = maxindex
 
     def addName(self, x: int, y: int):
         SequenznameItem(self, x, y, self._sequenz)
