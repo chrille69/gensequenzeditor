@@ -22,7 +22,6 @@ class SequenzenScene(QGraphicsScene):
     Reicht Events mit Hilfe von Callbacks an den Hauptdialog weiter.
     """
 
-    painted = Signal()
     baseClicked = Signal(Base)
     sequenzNameClicked = Signal(Sequenz)
     linealClicked = Signal(int)
@@ -88,14 +87,12 @@ class SequenzenScene(QGraphicsScene):
 
         if not self._model.sequenzen():
             self._keineSequenzenVorhanden()
-            self.painted.emit()
             return
         
         for sequenz in self._model.sequenzen():
             self._sequenzZeichnen(sequenz)
             sequenz.basenchanged.connect(self._sequenzZeichnen)
 
-        self.painted.emit()
         log.debug('allesNeuZeichnen Ende')
 
     def _sequenzZeichnen(self, sequenz: Sequenz):
@@ -122,7 +119,6 @@ class SequenzenScene(QGraphicsScene):
 
         if not sequenz.basen():
             self._sequenznameZeichnen(sequenzitem, 0, row)
-            self.painted.emit()
             return
 
         rotelinieschonda = False
@@ -149,8 +145,6 @@ class SequenzenScene(QGraphicsScene):
             self._baseZeichnen(sequenzitem, col, row, base, aktuellversteckt)
             col += 1
             rotelinieschonda = False
-
-        self.painted.emit()
 
     def _linealZeichnen(self):
         """Zeichnet das Lineal über den Sequenzen"""

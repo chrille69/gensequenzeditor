@@ -138,7 +138,6 @@ class SequenzEditor(QMainWindow):
         self.cb_zeilenumbrechen.stateChanged.connect(self.sequenzscene().umbruchTrigger)
         self.sb_spaltenzahl.returnPressed.connect(self._setze_spaltenzahl)
         self.cb_verstecktanzeigen.stateChanged.connect(self.sequenzscene().verstecktStateTrigger)
-        self._sequenzscene.painted.connect(self.paintedTrigger)
         self._sequenzscene.baseClicked.connect(self.openBaseDialog)
         self._sequenzscene.sequenzNameClicked.connect(self.openSequenzDialog)
         self._sequenzscene.linealClicked.connect(self.openLinealDialog)
@@ -146,6 +145,7 @@ class SequenzEditor(QMainWindow):
         self._markierungen.markierungEntfernen.connect(self.markierung_entfernen)
         self._markierungen.markierungFarbeSetzen.connect(self.markierung_farbe_setzen)
         self._markierungen.markierungUmbenennen.connect(self.markierung_name_setzen)
+        self._undoStack.canUndoChanged.connect(self.setUngespeichert)
 
     def sequenzscene(self) -> SequenzenScene:
         return self._sequenzscene
@@ -176,11 +176,6 @@ class SequenzEditor(QMainWindow):
                 return False
         self._ungespeichert = False
         return True
-
-    def paintedTrigger(self):
-        r = self._grafik.scene().itemsBoundingRect()
-        self._grafik.scene().setSceneRect(r)
-        self._ungespeichert = True
 
     def fileNew(self):
         if not self.ungespeichertFortfahren('Neue Datei beginnen'):
@@ -286,45 +281,59 @@ class SequenzEditor(QMainWindow):
 
     def base_leer_hinzu(self, base: Base, anzahl: int):
         self._undoStack.push(InsertLeerBaseCommand(base, anzahl))
+        self._ungespeichert = True
 
     def base_markieren(self, base: Base, anzahl: int, markierung: Markierung):
         self._undoStack.push(MarkiereBasenCommand(base, anzahl, markierung))
+        self._ungespeichert = True
 
     def base_entfernen(self, base: Base, anzahl: int):
         self._undoStack.push(EntferneBaseCommand(base, anzahl))
+        self._ungespeichert = True
 
     def base_sequenz_hinzu(self, base: Base, seqtext: str):
         self._undoStack.push(InsertBaseCommand(base, seqtext))
+        self._ungespeichert = True
 
     def sequenz_hinzu(self, sequenz: Sequenz):
         self._undoStack.push(AddSequenzenCommand(self.sequenzmodel(), [sequenz]))
+        self._ungespeichert = True
 
     def sequenz_umbenennen(self, sequenz: Sequenz, name: str):
         self._undoStack.push(RenameSequenzCommand(sequenz, name))
+        self._ungespeichert = True
 
     def sequenz_in_aminosaeure(self, sequenz: Sequenz):
         self._undoStack.push(AminosaeureSequenzCommand(sequenz))
+        self._ungespeichert = True
 
     def sequenz_entfernen(self, sequenz: Sequenz):
         self._undoStack.push(RemoveSequenzenCommand(self.sequenzmodel(), sequenz))
+        self._ungespeichert = True
 
     def basen_verstecken(self, bereich: range):
         self._undoStack.push(VerstecktCommand(self.sequenzmodel(), bereich))
+        self._ungespeichert = True
 
     def basen_enttarnen(self, bereich: range):
         self._undoStack.push(EnttarnenCommand(self.sequenzmodel(), bereich))
+        self._ungespeichert = True
 
     def markierung_hinzu(self, markierung: Markierung):
         self._undoStack.push(AddMarkierungCommand(self.sequenzmodel(), markierung))
+        self._ungespeichert = True
 
     def markierung_entfernen(self, markierung: Markierung):
         self._undoStack.push(RemoveMarkierungCommand(self.sequenzmodel(), markierung))
+        self._ungespeichert = True
 
     def markierung_farbe_setzen(self, markierung: Markierung, farbe: str):
         self._undoStack.push(changeColorMarkierungCommand(markierung, farbe))
+        self._ungespeichert = True
 
     def markierung_name_setzen(self, markierung: Markierung, name: str):
         self._undoStack.push(changeBeschreibungMarkierungCommand(markierung, name))
+        self._ungespeichert = True
 
 ##########################################
 # Dialoge
