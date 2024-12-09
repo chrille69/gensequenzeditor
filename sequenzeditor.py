@@ -145,7 +145,6 @@ class SequenzEditor(QMainWindow):
         self._markierungen.markierungEntfernen.connect(self.markierung_entfernen)
         self._markierungen.markierungFarbeSetzen.connect(self.markierung_farbe_setzen)
         self._markierungen.markierungUmbenennen.connect(self.markierung_name_setzen)
-        self._undoStack.canUndoChanged.connect(self.setUngespeichert)
 
     def sequenzscene(self) -> SequenzenScene:
         return self._sequenzscene
