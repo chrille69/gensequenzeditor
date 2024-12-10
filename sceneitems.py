@@ -221,10 +221,10 @@ class MarkierungItem(QGraphicsRectItem):
     def setFarbe(self):
         "Setzt die Farbe auf Grundlage der Markerung."
 
-        self.setBrush(QColor(self.markierung.farbe()))
+        self.setBrush(QColor(self.markierung.farbe))
 
     def setName(self):
         "Setzt den Text auf Grundlage der Beschreibung der Markierung."
 
-        self.nameItem.setPlainText(self.markierung.beschreibung())
+        self.nameItem.setPlainText(self.markierung.beschreibung)
 

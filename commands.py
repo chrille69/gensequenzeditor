@@ -136,7 +136,7 @@ class InsertBaseCommand(QUndoCommand):
 class RemoveMarkierungCommand(QUndoCommand):
 
     def __init__(self, model: SequenzenModel, markierung: Markierung):
-        super(RemoveMarkierungCommand, self).__init__('Markierung entfernt '+markierung.beschreibung())
+        super(RemoveMarkierungCommand, self).__init__('Markierung entfernt '+markierung.beschreibung)
         self.model = model
         self.markierung = markierung
 
@@ -151,7 +151,7 @@ class RemoveMarkierungCommand(QUndoCommand):
 class AddMarkierungCommand(QUndoCommand):
 
     def __init__(self, model: SequenzenModel, markierung: Markierung):
-        super(AddMarkierungCommand, self).__init__('Markierung hinzu '+markierung.beschreibung())
+        super(AddMarkierungCommand, self).__init__('Markierung hinzu '+markierung.beschreibung)
         self.model = model
         self.markierung = markierung
 
@@ -168,13 +168,13 @@ class changeColorMarkierungCommand(QUndoCommand):
         super(changeColorMarkierungCommand, self).__init__('Markierung Farbe '+farbe)
         self.markierung = markierung
         self.farbeneu = farbe
-        self.farbealt = markierung.farbe()
+        self.farbealt = markierung.farbe
 
     def redo(self):
-        self.markierung.setFarbe(self.farbeneu)
+        self.markierung.farbe = self.farbeneu
 
     def undo(self):
-        self.markierung.setFarbe(self.farbealt)
+        self.markierung.farbe = self.farbealt
 
 
 class changeBeschreibungMarkierungCommand(QUndoCommand):
@@ -183,13 +183,13 @@ class changeBeschreibungMarkierungCommand(QUndoCommand):
         super(changeBeschreibungMarkierungCommand, self).__init__('Markierung Name '+name)
         self.markierung = markierung
         self.nameneu = name
-        self.namealt = markierung.beschreibung()
+        self.namealt = markierung.beschreibung
 
     def redo(self):
-        self.markierung.setBeschreibung(self.nameneu)
+        self.markierung.beschreibung = self.nameneu
 
     def undo(self):
-        self.markierung.setBeschreibung(self.namealt)
+        self.markierung.beschreibung = self.namealt
 
 
 class VerstecktCommand(QUndoCommand):

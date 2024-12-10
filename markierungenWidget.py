@@ -86,7 +86,7 @@ class MarkierungWidget(QWidget):
 
         self._farbchooserbutton = QPushButton('Farbe wählen')
         self._farbchooserbutton.clicked.connect(self._farbauswahl)
-        self._farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe()}; padding: 5')
+        self._farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe}; padding: 5')
         hbox.addWidget(self._farbchooserbutton)
 
         entfernebutton = QPushButton()
@@ -98,16 +98,16 @@ class MarkierungWidget(QWidget):
         self.setName()
 
     def setName(self):
-        self._le_beschreibung.setText(self.markierung.beschreibung())
+        self._le_beschreibung.setText(self.markierung.beschreibung)
 
     def setFarbe(self):
-        self._farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe()};')
+        self._farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe};')
 
     def _beschreibungAktualisieren(self, *args):
         self.markierungNameChanged.emit(self.markierung, self._le_beschreibung.text())
 
     def _farbauswahl(self):
-        farbe = QColorDialog.getColor(self.markierung.farbe())
+        farbe = QColorDialog.getColor(self.markierung.farbe)
         if farbe:
             self.markierungFarbeChanged.emit(self.markierung, farbe.name())
             self._farbchooserbutton.setStyleSheet(f'background-color:{farbe.name()};')

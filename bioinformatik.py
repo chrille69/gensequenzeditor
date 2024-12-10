@@ -154,7 +154,7 @@ class Base(QObject):
     def getBoxFarbe(self) -> str:
         farbe = ''
         if self.markierung:
-            farbe = self.markierung.farbe()
+            farbe = self.markierung.farbe
         return farbe
 
     def __str__(self) -> str:
@@ -163,7 +163,7 @@ class Base(QObject):
     def to_json(self) -> str:
         basedict = {'_char': self.char}
         if self._markierung:
-            basedict['_mtxt'] = self.markierung.beschreibung()
+            basedict['_mtxt'] = self.markierung.beschreibung
         return basedict
 
 
@@ -178,17 +178,21 @@ class Markierung(QObject):
         self._beschreibung = _beschreibung
         self._farbe = _farbe
 
+    @property
     def beschreibung(self) -> str:
         return self._beschreibung
 
-    def setBeschreibung(self, beschreibung: str):
+    @beschreibung.setter
+    def beschreibung(self, beschreibung: str):
         self._beschreibung = beschreibung
         self.nameChanged.emit()
 
+    @property
     def farbe(self) -> str:
         return self._farbe
 
-    def setFarbe(self, farbe: str):
+    @farbe.setter
+    def farbe(self, farbe: str):
         self._farbe = farbe
         self.farbeChanged.emit()
 

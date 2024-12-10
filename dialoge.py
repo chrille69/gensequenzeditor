@@ -19,7 +19,7 @@ class BaseDialog(QDialog):
         self.nonebasetext = '- keine -'
         self._base = base
         self._markierungen = parent.sequenzmodel().markierungen()
-        self._auswahltexte = [self.nonebasetext]+[m.beschreibung() for m in self._markierungen]
+        self._auswahltexte = [self.nonebasetext]+[m.beschreibung for m in self._markierungen]
         vbox = QVBoxLayout(self)
         self.setLayout(vbox)
         gb_leerbasen = QGroupBox('Leerbasen einfügen',self)
@@ -53,7 +53,7 @@ class BaseDialog(QDialog):
         self._sb_markieranzahl.setRange(1,99999)
         self._cb_markierbasen = QComboBox()
         self._cb_markierbasen.addItems(self._auswahltexte)
-        self._cb_markierbasen.setCurrentIndex(self._auswahltexte.index(self._base.markierung.beschreibung() if self._base.markierung else self.nonebasetext))
+        self._cb_markierbasen.setCurrentIndex(self._auswahltexte.index(self._base.markierung.beschreibung if self._base.markierung else self.nonebasetext))
         hbox_markierbasen.addWidget(QLabel('Anzahl'))
         hbox_markierbasen.addWidget(self._sb_markieranzahl)
         hbox_markierbasen.addStretch()
@@ -89,7 +89,7 @@ class BaseDialog(QDialog):
         text = self._cb_markierbasen.currentText()
         markierung = None
         for m in self._markierungen:
-            if text == m.beschreibung():
+            if text == m.beschreibung:
                 markierung = m
                 break
         self.baseMarkieren.emit(self._base, self._sb_markieranzahl.value(), markierung)
