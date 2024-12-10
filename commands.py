@@ -66,16 +66,16 @@ class InsertLeerBaseCommand(QUndoCommand):
 
     def __init__(self, base: Base, anzahl: int):
         super(InsertLeerBaseCommand, self).__init__('Insert leer')
-        index = base.getIndexInSequenz()
+        self.pos = base.getIndexInSequenz()
         self.sequenz = base.sequenz()
-        self.basenalt = self.sequenz.basen
-        self.basenneu = self.sequenz.insertLeer(index, anzahl)
+        self.anazhl = anzahl
+        self.basen = self.sequenz.createLeereBasen(anzahl)
 
     def redo(self):
-        self.sequenz.basen = self.basenneu
+        self.sequenz.insertBasen(self.pos, self.basen)
 
     def undo(self):
-        self.sequenz.basen = self.basenalt
+        self.sequenz.removeBasen(self.pos, self.anazhl)
 
 
 class MarkiereBasenCommand(QUndoCommand):
@@ -106,16 +106,16 @@ class EntferneBaseCommand(QUndoCommand):
 
     def __init__(self, base: Base, anzahl: int):
         super(EntferneBaseCommand, self).__init__('Entferne Basen')
-        index = base.getIndexInSequenz()
+        self.pos = base.getIndexInSequenz()
         self.sequenz = base.sequenz()
-        self.basenalt = self.sequenz.basen
-        self.basenneu = self.sequenz.entferneBasen(index, anzahl)
+        self.anzahl = anzahl
+        self.basen = []
 
     def redo(self):
-        self.sequenz.basen = self.basenneu
+        self.basen = self.sequenz.removeBasen(self.pos, self.anzahl)
 
     def undo(self):
-        self.sequenz.basen = self.basenalt
+        self.sequenz.insertBasen(self.pos, self.basen)
 
 
 class InsertBaseCommand(QUndoCommand):

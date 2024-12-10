@@ -41,17 +41,6 @@ class Sequenz(QObject):
     def createLeereBasen(self, anzahl: int):
         return [Base(self, _char='~') for _ in range(anzahl)]
     
-    def insertLeer(self, pos: int, anzahl: int) -> list['Base']:
-        leere = []
-        for _ in range(anzahl):
-            leere.append(Base(self, _char='~'))
-        return self._basen[:pos]+leere+self._basen[pos:]
-
-    def entferneBasen(self, index: int, anzahl: int) -> list['Base']:
-        basenneu = self._basen.copy()
-        basenneu[index:index+anzahl] = []
-        return basenneu
-
     def inAminosaeure(self):
         neueBasen = []
         for base in self.basen:
