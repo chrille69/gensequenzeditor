@@ -5,6 +5,45 @@ from bioinformatik import Sequenz, Markierung
 
 log = logging.getLogger(__name__)
 
+
+class SequenzenViewModel(QObject):
+
+    changed = Signal()
+
+    def __init__(self, parent, umbruch: bool = True, spaltenzahl: int = 50, zeigeversteckt: bool = False):
+        super().__init__(parent)
+        self._umbruch = umbruch
+        self._spaltenzahl = spaltenzahl
+        self._zeigeversteckt = zeigeversteckt
+
+    @property
+    def umbruch(self) -> bool:
+        return self._umbruch
+    
+    @umbruch.setter
+    def umbruch(self, value) -> bool:
+        self._umbruch = value
+        self.changed.emit()
+
+    @property
+    def spaltenzahl(self) -> bool:
+        return self._spaltenzahl
+    
+    @spaltenzahl.setter
+    def spaltenzahl(self, value) -> bool:
+        self._spaltenzahl = value
+        self.changed.emit()
+
+    @property
+    def zeigeversteckt(self) -> bool:
+        return self._zeigeversteckt
+    
+    @zeigeversteckt.setter
+    def zeigeversteckt(self, value) -> bool:
+        self._zeigeversteckt = value
+        self.changed.emit()
+
+
 class SequenzenModel(QObject):
 
     sequenzenChanged = Signal()

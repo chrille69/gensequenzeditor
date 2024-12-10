@@ -6,7 +6,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QGraphicsScene
 from sceneitems import basenlaenge, sequenznamewidth, SequenzItem, LinealItem, MarkierungItem
 from bioinformatik import Sequenz, Markierung, Base
-from sequenzenmodel import SequenzenModel
+from sequenzenmodel import SequenzenModel, SequenzenViewModel
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -33,14 +33,11 @@ class SequenzenScene(QGraphicsScene):
     abstandMarkierungen = 3
     markierunglaenge = 50
 
-    def __init__(self, parent, sequenzenmodel: SequenzenModel, umbruch: bool = True, spaltenzahl: int = 50, zeigeversteckt: bool = False):
+    def __init__(self, parent, sequenzenmodel: SequenzenModel, sequenzenviewmodel: SequenzenViewModel):
         super().__init__(parent)
         self._model = sequenzenmodel
-        self._umbruch = umbruch
-        self._spaltenzahl = spaltenzahl
-        self._zeigeversteckt = zeigeversteckt
+        self._viewmodel = sequenzenviewmodel
         self.vorgängerMarkierungItem: MarkierungItem = None
-
 
         self._ystart = self.rahmendicke+2*basenlaenge
         self._maxlen = 0
@@ -48,11 +45,20 @@ class SequenzenScene(QGraphicsScene):
         self._linealitem = None
         self._sequenzitems = {}
 
-        self._model.sequenzenChanged.connect(self.allesNeuZeichnen)
-        self._model.verstecktChanged.connect(self.allesNeuZeichnen)
-        self._model.markierungenChanged.connect(self._markierungenZeichnen)
+        self.model.sequenzenChanged.connect(self.allesNeuZeichnen)
+        self.model.verstecktChanged.connect(self.allesNeuZeichnen)
+        self.model.markierungenChanged.connect(self._markierungenZeichnen)
+        self.viewmodel.changed.connect(self.allesNeuZeichnen)
         self.setBackgroundBrush(Qt.white)
         self.allesNeuZeichnen()
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def viewmodel(self):
+        return self._viewmodel
 
     def _emptyCanvas(self):
         """Leert die Leinwand"""
@@ -85,11 +91,11 @@ class SequenzenScene(QGraphicsScene):
         self._verstecktBemerkungZeichnen()
         self._linealZeichnen()
 
-        if not self._model.sequenzen:
+        if not self.model.sequenzen:
             self._keineSequenzenVorhanden()
             return
         
-        for sequenz in self._model.sequenzen:
+        for sequenz in self.model.sequenzen:
             self._sequenzZeichnen(sequenz)
             sequenz.basenRenewed.connect(self._sequenzZeichnenTrigger)
             sequenz.basenInserted.connect(self._sequenzZeichnenTrigger)
@@ -118,7 +124,7 @@ class SequenzenScene(QGraphicsScene):
         if self._maxlenBerechnen():
             self._linealZeichnen()
 
-        row = self._model.sequenzen.index(sequenz)
+        row = self.model.sequenzen.index(sequenz)
         if row in self._sequenzitems:
             self.removeItem(self._sequenzitems[row])
         sequenzitem = SequenzItem(sequenz)
@@ -140,14 +146,14 @@ class SequenzenScene(QGraphicsScene):
 
             # Hier wird entschieden, ob die rote Linie für versteckte Sequenzen
             # gezeichnet werden soll.
-            aktuellversteckt = basidx in self._model.versteckt
-            if aktuellversteckt and not self._zeigeversteckt:
+            aktuellversteckt = basidx in self.model.versteckt
+            if aktuellversteckt and not self.viewmodel.zeigeversteckt:
                 if not rotelinieschonda:
                     self._baseRoteLinieZeichnen(sequenzitem, col, row)
                     rotelinieschonda = True
                 continue
 
-            if self._umbruch and col % self._spaltenzahl == 0 or not self._umbruch and col == 0:
+            if self.viewmodel.umbruch and col % self.viewmodel.spaltenzahl == 0 or not self.viewmodel.umbruch and col == 0:
                 # Bei einer neuen Zeile muss der Sequenzname neu gezeichnet werden.
                 self._sequenznameZeichnen(sequenzitem, col, row)
             
@@ -166,8 +172,8 @@ class SequenzenScene(QGraphicsScene):
         rotelinieschonda = False
         for i in range(self._maxlen):
 
-            aktuellversteckt = i in self._model.versteckt
-            if aktuellversteckt and not self._zeigeversteckt:
+            aktuellversteckt = i in self.model.versteckt
+            if aktuellversteckt and not self.viewmodel.zeigeversteckt:
                     if not rotelinieschonda:
                         self._linealRoteLinieZeichnen(self._linealitem, col)
                         rotelinieschonda = True
@@ -181,7 +187,7 @@ class SequenzenScene(QGraphicsScene):
     def _verstecktBemerkungZeichnen(self):
         """Zeichnet einen Infotext, wenn keine Markierungen vorhanden sind."""
 
-        if not self._model.versteckt:
+        if not self.model.versteckt:
             return
         objektid = self.addText('Es gibt versteckte Spalten')
         objektid.setDefaultTextColor(Qt.black)
@@ -193,7 +199,7 @@ class SequenzenScene(QGraphicsScene):
             self.vorgängerMarkierungItem = self.vorgängerMarkierungItem.vorgänger
             self.removeItem(markierungitem)
     
-        for markierung in self._model.markierungen:
+        for markierung in self.model.markierungen:
             self.vorgängerMarkierungItem = MarkierungItem(self.vorgängerMarkierungItem, markierung)
             self.addItem(self.vorgängerMarkierungItem)
 
@@ -255,13 +261,13 @@ class SequenzenScene(QGraphicsScene):
     
     def _rowMitUmbruchBerechnen(self, col: int, row: int) -> int:
         "Berechnet die Zeile, wenn die Sequenzen umgebrochen werden"
-        return int(col/self._spaltenzahl) * (len(self._model.sequenzen)+2.5) + row
+        return int(col/self.viewmodel.spaltenzahl) * (len(self.model.sequenzen)+2.5) + row
 
     def _colrowHolen(self, baseidx: int, sequenzidx: int) -> tuple[int,int]:
         "Berechnet aus der Sequenznummer und der Basennummer die Zeile und Spalte"
-        if self._umbruch:
+        if self.viewmodel.umbruch:
             row = self._rowMitUmbruchBerechnen(baseidx, sequenzidx)
-            col = baseidx % self._spaltenzahl
+            col = baseidx % self.viewmodel.spaltenzahl
         else:
             row = sequenzidx
             col = baseidx
@@ -294,7 +300,7 @@ class SequenzenScene(QGraphicsScene):
         """
 
         maxlen = 0
-        for sequenz in self._model.sequenzen:
+        for sequenz in self.model.sequenzen:
             seqlen = len(sequenz.basen)
             if maxlen < seqlen:
                 maxlen = seqlen
@@ -302,30 +308,3 @@ class SequenzenScene(QGraphicsScene):
             self._maxlen = maxlen
             return True
         return False
-
-####################################################
-# Slots
-####################################################
-
-    def verstecktStateTrigger(self, checked: bool):
-        log.debug('Start verstecktStateTrigger')
-        log.debug(self.sender())
-        if checked:
-            self._zeigeversteckt = True
-        else:
-            self._zeigeversteckt = False
-        self.allesNeuZeichnen()
-        log.debug('Ende verstecktStateTrigger')
-
-    def umbruchTrigger(self, checked: bool):
-        log.debug(self.sender())
-        if checked:
-            self._umbruch = True
-        else:
-            self._umbruch = False
-        self.allesNeuZeichnen()
-
-    def spaltenzahlTrigger(self, anzahl: int):
-        log.debug(self.sender())
-        self._spaltenzahl = anzahl
-        self.allesNeuZeichnen()

@@ -14,7 +14,7 @@ VERSION = "2.0"
 from bioinformatik import Markierung, Sequenz, Base
 from markierungenWidget import MarkierungenVerwalten
 from sequenzenscene import SequenzenScene
-from sequenzenmodel import SequenzenModel
+from sequenzenmodel import SequenzenModel, SequenzenViewModel
 from dialoge import NeueSequenzDialog, BaseDialog, SequenzDialog, LinealDialog
 from commands import (RemoveMarkierungCommand, changeColorMarkierungCommand, changeBeschreibungMarkierungCommand, AddMarkierungCommand,
                       RenameSequenzCommand, AminosaeureSequenzCommand, RemoveSequenzenCommand, AddSequenzenCommand,
@@ -52,9 +52,10 @@ class SequenzEditor(QMainWindow):
         self._mainlayout = QHBoxLayout()
         self._main.setLayout(self._mainlayout)
         self._sequenzmodel = SequenzenModel(self, sequenzen, markierungen, versteckt)
-        self._sequenzscene = SequenzenScene(self, self.sequenzmodel())
-        self._grafik = QGraphicsView(self.sequenzscene())
-        self._markierungen = MarkierungenVerwalten(self.sequenzmodel())
+        self._viewmodel = SequenzenViewModel(self)
+        self._sequenzscene = SequenzenScene(self, self._sequenzmodel, self._viewmodel)
+        self._grafik = QGraphicsView(self._sequenzscene)
+        self._markierungen = MarkierungenVerwalten(self._sequenzmodel)
         self._ungespeichert = False
         self._undoStack = QUndoStack(self)
 
@@ -135,9 +136,9 @@ class SequenzEditor(QMainWindow):
         pngexportAction.triggered.connect(self.exportPNG)
         beendenAction.triggered.connect(self.close)
         neuesequenzAction.triggered.connect(self.neueSequenzDialog)
-        self.cb_zeilenumbrechen.stateChanged.connect(self.sequenzscene().umbruchTrigger)
+        self.cb_zeilenumbrechen.stateChanged.connect(self._setze_umbruch)
         self.sb_spaltenzahl.returnPressed.connect(self._setze_spaltenzahl)
-        self.cb_verstecktanzeigen.stateChanged.connect(self.sequenzscene().verstecktStateTrigger)
+        self.cb_verstecktanzeigen.stateChanged.connect(self._setze_versteckt)
         self._sequenzscene.baseClicked.connect(self.openBaseDialog)
         self._sequenzscene.sequenzNameClicked.connect(self.openSequenzDialog)
         self._sequenzscene.linealClicked.connect(self.openLinealDialog)
@@ -272,7 +273,13 @@ class SequenzEditor(QMainWindow):
             spaltenzahl = int(self.sb_spaltenzahl.text())
         except ValueError:
             return
-        self.sequenzscene().spaltenzahlTrigger(spaltenzahl)
+        self._viewmodel.spaltenzahl = spaltenzahl
+
+    def _setze_versteckt(self):
+        self._viewmodel.zeigeversteckt = self.cb_verstecktanzeigen.isChecked()
+
+    def _setze_umbruch(self):
+        self._viewmodel.umbruch = self.cb_zeilenumbrechen.isChecked()
 
 ##########################################
 # Kommandos, die das Model betreffen
