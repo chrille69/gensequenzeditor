@@ -38,28 +38,28 @@ class RenameSequenzCommand(QUndoCommand):
         super(RenameSequenzCommand, self).__init__('Sequenz umbenannt '+nameneu)
         self.sequenz = sequenz
         self.nameneu = nameneu
-        self.namealt = sequenz.name()
+        self.namealt = sequenz.name
 
     def redo(self):
-        self.sequenz.setName(self.nameneu)
+        self.sequenz.name = self.nameneu
 
     def undo(self):
-        self.sequenz.setName(self.namealt)
+        self.sequenz.name = self.namealt
 
 
 class AminosaeureSequenzCommand(QUndoCommand):
 
     def __init__(self, sequenz: Sequenz):
-        super(AminosaeureSequenzCommand, self).__init__('Sequenz in Aminos. '+sequenz.name())
+        super(AminosaeureSequenzCommand, self).__init__('Sequenz in Aminos. '+sequenz.name)
         self.sequenz = sequenz
-        self.basenalt = sequenz.basen()
+        self.basenalt = sequenz.basen
         self.basenneu = sequenz.inAminosaeure()
 
     def redo(self):
-        self.sequenz.setBasen(self.basenneu)
+        self.sequenz.basen = self.basenneu
 
     def undo(self):
-        self.sequenz.setBasen(self.basenalt)
+        self.sequenz.basen = self.basenalt
 
 
 class InsertLeerBaseCommand(QUndoCommand):
@@ -68,14 +68,14 @@ class InsertLeerBaseCommand(QUndoCommand):
         super(InsertLeerBaseCommand, self).__init__('Insert leer')
         index = base.getIndexInSequenz()
         self.sequenz = base.sequenz()
-        self.basenalt = self.sequenz.basen()
+        self.basenalt = self.sequenz.basen
         self.basenneu = self.sequenz.insertLeer(index, anzahl)
 
     def redo(self):
-        self.sequenz.setBasen(self.basenneu)
+        self.sequenz.basen = self.basenneu
 
     def undo(self):
-        self.sequenz.setBasen(self.basenalt)
+        self.sequenz.basen = self.basenalt
 
 
 class MarkiereBasenCommand(QUndoCommand):
@@ -84,10 +84,10 @@ class MarkiereBasenCommand(QUndoCommand):
         super(MarkiereBasenCommand, self).__init__('Basen markiert')
         index = base.getIndexInSequenz()
         sequenz = base.sequenz()
-        neu_markiert = sequenz.basen()[index:index+anzahl]
+        neu_markiert = sequenz.basen[index:index+anzahl]
         self.basen_mark_alt = {}
         self.basen_mark_neu = {}
-        for b in sequenz.basen():
+        for b in sequenz.basen:
             self.basen_mark_alt[b] = b.markierung()
             self.basen_mark_neu[b] = b.markierung()
             if b in neu_markiert:
@@ -108,30 +108,29 @@ class EntferneBaseCommand(QUndoCommand):
         super(EntferneBaseCommand, self).__init__('Entferne Basen')
         index = base.getIndexInSequenz()
         self.sequenz = base.sequenz()
-        self.basenalt = self.sequenz.basen()
+        self.basenalt = self.sequenz.basen
         self.basenneu = self.sequenz.entferneBasen(index, anzahl)
 
     def redo(self):
-        self.sequenz.setBasen(self.basenneu)
+        self.sequenz.basen = self.basenneu
 
     def undo(self):
-        self.sequenz.setBasen(self.basenalt)
+        self.sequenz.basen = self.basenalt
 
 
 class InsertBaseCommand(QUndoCommand):
 
     def __init__(self, base: Base, seqtext: int):
         super(InsertBaseCommand, self).__init__('Insert Basen')
-        index = base.getIndexInSequenz()
+        self.pos = base.getIndexInSequenz()
         self.sequenz = base.sequenz()
-        self.basenalt = self.sequenz.basen()
-        self.basenneu = self.sequenz.insertBasenString(index, seqtext)
+        self.basen = self.sequenz.createBasenFromString(seqtext)
 
     def redo(self):
-        self.sequenz.setBasen(self.basenneu)
+        self.sequenz.insertBasen(self.pos, self.basen)
 
     def undo(self):
-        self.sequenz.setBasen(self.basenalt)
+        self.sequenz.removeBasen(self.pos, len(self.basen))
 
 
 class RemoveMarkierungCommand(QUndoCommand):

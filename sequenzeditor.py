@@ -202,7 +202,7 @@ class SequenzEditor(QMainWindow):
         for m in markierungen:
             mtxtdict[m._beschreibung]=m
         for s in sequenzen:
-            for b in s.basen():
+            for b in s.basen:
                 if b._mtxt:
                     b.setMarkierung(mtxtdict[b._mtxt])
                     del b._mtxt

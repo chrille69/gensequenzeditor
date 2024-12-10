@@ -127,7 +127,7 @@ class SequenzDialog(QDialog):
 
         hbox_umbenennen = QHBoxLayout()
         gb_umbenennen.setLayout(hbox_umbenennen)
-        self._in_sequenzname = QLineEdit(sequenz.name())
+        self._in_sequenzname = QLineEdit(sequenz.name)
         btn_umbenennen = QPushButton('Umbenennen')
         hbox_umbenennen.addWidget(self._in_sequenzname)
         hbox_umbenennen.addWidget(btn_umbenennen)

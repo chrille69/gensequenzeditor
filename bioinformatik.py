@@ -15,8 +15,10 @@ class Sequenz(QObject):
     Hintergrundfarbe (default weiß).
     """
 
-    namechanged = Signal(QObject)
-    basenchanged = Signal(QObject)
+    nameChanged = Signal()
+    basenRenewed = Signal()
+    basenInserted = Signal(int, list)
+    basenRemoved = Signal(int, list)
 
     def __init__(self, _name, _basen: list['Base']=None):
         super().__init__()
@@ -24,35 +26,21 @@ class Sequenz(QObject):
         self._basen = _basen or []
 
     def importBasenArrayOfDict(self, array):
-        self._basen = []
-        for baseobj in array:
-            self._basen.append( Base(self, **baseobj))
-        self.basenchanged.emit(self)
+        self.basen = [Base(self, **baseobj) for baseobj in array]
 
     def importBasenString(self, text: str):
-        self._basen = []
         pattern = re.compile(r'\s+')
         text = re.sub(pattern, '', text).upper()
-        for char in text:
-            self._basen.append( Base(self, char) )
-        self.basenchanged.emit(self)
+        self.basen = [Base(self, char) for char in text]
 
-    def insertBasenString(self, pos: int, text: str) -> list['Base']:
+    def createBasenFromString(self, text: str) -> list['Base']:
         pattern = re.compile(r'\s+')
         text = re.sub(pattern, '', text).upper()
-        basenneu = self._basen.copy()
-        for char in text[::-1]:
-            basenneu.insert(pos, Base(self, char))
-        return basenneu
+        return [Base(self, char) for char in text]
 
-    def setBasen(self, basen: 'Base'):
-        self._basen = basen
-        self.basenchanged.emit(self)
-
-    def setName(self, name: str):
-        self._name = name
-        self.namechanged.emit(self)
-
+    def createLeereBasen(self, anzahl: int):
+        return [Base(self, _char='~') for _ in range(anzahl)]
+    
     def insertLeer(self, pos: int, anzahl: int) -> list['Base']:
         leere = []
         for _ in range(anzahl):
@@ -66,17 +54,40 @@ class Sequenz(QObject):
 
     def inAminosaeure(self):
         neueBasen = []
-        for base in self._basen:
+        for base in self.basen:
             neueBasen.append(base)
             neueBasen.append(Base(self))
             neueBasen.append(Base(self))
         return neueBasen
 
+    def insertBasen(self, pos: int, basen: list['Base']):
+        self._basen[pos:pos] = basen
+        self.basenInserted.emit(pos, basen)
+        return basen
+
+    def removeBasen(self, pos: int, anzahl: int):
+        muell = self._basen[pos:pos+anzahl]
+        self._basen[pos:pos+anzahl] = []
+        self.basenRemoved.emit(pos, muell)
+        return muell
+
+    @property
     def basen(self) -> list['Base']:
         return self._basen
 
+    @basen.setter
+    def basen(self, basen: list['Base']):
+        self._basen = basen
+        self.basenRenewed.emit()
+
+    @property
     def name(self) -> str:
         return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+        self.nameChanged.emit()
 
     def __str__(self) -> str:
         return 'Sequenz'+str(self.__hash__())
@@ -123,11 +134,11 @@ class Base(QObject):
         return self._markierung
 
     def getIndexInSequenz(self) -> int:
-        return self._sequenz.basen().index(self)
+        return self._sequenz.basen.index(self)
 
     def getNummerInSequenzOhneLeer(self) -> int:
         nummer = 1
-        for base in self._sequenz.basen():
+        for base in self._sequenz.basen:
             if base == self:
                 return nummer
             if base.char() != '~':

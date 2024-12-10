@@ -66,7 +66,7 @@ class SequenznameItem(QGraphicsRectItem):
         self.gtxt = QGraphicsSimpleTextItem(parent)
         self.gtxt.setFont(seqfont)
         self.setName()
-        self._sequenz.namechanged.connect(self.setName)
+        self._sequenz.nameChanged.connect(self.setName)
         self.setAcceptHoverEvents(True)
 
     def setName(self):
@@ -76,12 +76,12 @@ class SequenznameItem(QGraphicsRectItem):
         self.gtxt.setPos(self._x+sequenznamewidth-w, self._y+basenlaenge/2-seqfm.height()/2)
 
     def kurzName(self) -> str:
-        txt = self._sequenz.name()
+        txt = self._sequenz.name
         w = seqfm.horizontalAdvance(txt)
         while w > sequenznamewidth:
             txt = txt[:-1]
             w = seqfm.horizontalAdvance(txt)
-        if self._sequenz.name() != txt:
+        if self._sequenz.name != txt:
             txt = txt[:-3]+'...'
         return txt
 

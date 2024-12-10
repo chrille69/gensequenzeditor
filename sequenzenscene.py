@@ -91,11 +91,17 @@ class SequenzenScene(QGraphicsScene):
         
         for sequenz in self._model.sequenzen():
             self._sequenzZeichnen(sequenz)
-            sequenz.basenchanged.connect(self._sequenzZeichnen)
+            sequenz.basenRenewed.connect(self._sequenzZeichnenTrigger)
+            sequenz.basenInserted.connect(self._sequenzZeichnenTrigger)
+            sequenz.basenRemoved.connect(self._sequenzZeichnenTrigger)
 
         log.debug('allesNeuZeichnen Ende')
 
-    def _sequenzZeichnen(self, sequenz: Sequenz):
+    def _sequenzZeichnenTrigger(self):
+        sequenz = self.sender()
+        self._sequenzZeichnen(sequenz)
+
+    def _sequenzZeichnen(self, sequenz: Sequenz = None):
         """Zeichnet eine Sequenz.
 
         * seqidx: Die Nummer im Sequenzarray self.sequenzen
@@ -106,6 +112,9 @@ class SequenzenScene(QGraphicsScene):
         aufgerufen werden.
         """
 
+        if not sequenz:
+            return
+        
         if self._maxlenBerechnen():
             self._linealZeichnen()
 
@@ -117,17 +126,17 @@ class SequenzenScene(QGraphicsScene):
         self._sequenzitems[row] = sequenzitem
 
 
-        if not sequenz.basen():
+        if not sequenz.basen:
             self._sequenznameZeichnen(sequenzitem, 0, row)
             return
 
         rotelinieschonda = False
         col = 0
-        for basidx in range(len(sequenz.basen())):
+        for basidx in range(len(sequenz.basen)):
             # Weil einige Basen versteckt sein können, ist die Spalte col
             # nicht mir dem Basenindex basidx identisch.
 
-            base = sequenz.basen()[basidx]
+            base = sequenz.basen[basidx]
 
             # Hier wird entschieden, ob die rote Linie für versteckte Sequenzen
             # gezeichnet werden soll.
@@ -286,7 +295,7 @@ class SequenzenScene(QGraphicsScene):
 
         maxlen = 0
         for sequenz in self._model.sequenzen():
-            seqlen = len(sequenz.basen())
+            seqlen = len(sequenz.basen)
             if maxlen < seqlen:
                 maxlen = seqlen
         if maxlen != self._maxlen:
