@@ -50,7 +50,7 @@ class MarkierungenVerwalten(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        for markierung in self.model.markierungen():
+        for markierung in self.model.markierungen:
             mw = MarkierungWidget(markierung)
             self._vboxframe.insertWidget(0, mw, alignment=Qt.AlignTop)
             mw.markierungRemoved.connect(self._markierungEntfernen)

@@ -17,12 +17,15 @@ class SequenzenModel(QObject):
         self._markierungen = markierungen or []
         self._versteckt = versteckt or []
 
+    @property
     def sequenzen(self) -> list[Sequenz]:
         return self._sequenzen
 
+    @property
     def markierungen(self) -> list[Markierung]:
         return self._markierungen
 
+    @property
     def versteckt(self) -> list[bool]:
         return self._versteckt
 

@@ -85,11 +85,11 @@ class SequenzenScene(QGraphicsScene):
         self._verstecktBemerkungZeichnen()
         self._linealZeichnen()
 
-        if not self._model.sequenzen():
+        if not self._model.sequenzen:
             self._keineSequenzenVorhanden()
             return
         
-        for sequenz in self._model.sequenzen():
+        for sequenz in self._model.sequenzen:
             self._sequenzZeichnen(sequenz)
             sequenz.basenRenewed.connect(self._sequenzZeichnenTrigger)
             sequenz.basenInserted.connect(self._sequenzZeichnenTrigger)
@@ -118,7 +118,7 @@ class SequenzenScene(QGraphicsScene):
         if self._maxlenBerechnen():
             self._linealZeichnen()
 
-        row = self._model.sequenzen().index(sequenz)
+        row = self._model.sequenzen.index(sequenz)
         if row in self._sequenzitems:
             self.removeItem(self._sequenzitems[row])
         sequenzitem = SequenzItem(sequenz)
@@ -140,7 +140,7 @@ class SequenzenScene(QGraphicsScene):
 
             # Hier wird entschieden, ob die rote Linie für versteckte Sequenzen
             # gezeichnet werden soll.
-            aktuellversteckt = basidx in self._model.versteckt()
+            aktuellversteckt = basidx in self._model.versteckt
             if aktuellversteckt and not self._zeigeversteckt:
                 if not rotelinieschonda:
                     self._baseRoteLinieZeichnen(sequenzitem, col, row)
@@ -166,7 +166,7 @@ class SequenzenScene(QGraphicsScene):
         rotelinieschonda = False
         for i in range(self._maxlen):
 
-            aktuellversteckt = i in self._model.versteckt()
+            aktuellversteckt = i in self._model.versteckt
             if aktuellversteckt and not self._zeigeversteckt:
                     if not rotelinieschonda:
                         self._linealRoteLinieZeichnen(self._linealitem, col)
@@ -181,7 +181,7 @@ class SequenzenScene(QGraphicsScene):
     def _verstecktBemerkungZeichnen(self):
         """Zeichnet einen Infotext, wenn keine Markierungen vorhanden sind."""
 
-        if not self._model.versteckt():
+        if not self._model.versteckt:
             return
         objektid = self.addText('Es gibt versteckte Spalten')
         objektid.setDefaultTextColor(Qt.black)
@@ -193,7 +193,7 @@ class SequenzenScene(QGraphicsScene):
             self.vorgängerMarkierungItem = self.vorgängerMarkierungItem.vorgänger
             self.removeItem(markierungitem)
     
-        for markierung in self._model.markierungen():
+        for markierung in self._model.markierungen:
             self.vorgängerMarkierungItem = MarkierungItem(self.vorgängerMarkierungItem, markierung)
             self.addItem(self.vorgängerMarkierungItem)
 
@@ -255,7 +255,7 @@ class SequenzenScene(QGraphicsScene):
     
     def _rowMitUmbruchBerechnen(self, col: int, row: int) -> int:
         "Berechnet die Zeile, wenn die Sequenzen umgebrochen werden"
-        return int(col/self._spaltenzahl) * (len(self._model.sequenzen())+2.5) + row
+        return int(col/self._spaltenzahl) * (len(self._model.sequenzen)+2.5) + row
 
     def _colrowHolen(self, baseidx: int, sequenzidx: int) -> tuple[int,int]:
         "Berechnet aus der Sequenznummer und der Basennummer die Zeile und Spalte"
@@ -294,7 +294,7 @@ class SequenzenScene(QGraphicsScene):
         """
 
         maxlen = 0
-        for sequenz in self._model.sequenzen():
+        for sequenz in self._model.sequenzen:
             seqlen = len(sequenz.basen)
             if maxlen < seqlen:
                 maxlen = seqlen

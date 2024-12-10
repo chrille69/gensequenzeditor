@@ -18,7 +18,7 @@ class BaseDialog(QDialog):
         super().__init__(parent)
         self.nonebasetext = '- keine -'
         self._base = base
-        self._markierungen = parent.sequenzmodel().markierungen()
+        self._markierungen = parent.sequenzmodel().markierungen
         self._auswahltexte = [self.nonebasetext]+[m.beschreibung for m in self._markierungen]
         vbox = QVBoxLayout(self)
         self.setLayout(vbox)

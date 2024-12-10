@@ -146,7 +146,6 @@ class Base(QObject):
 
     def removeMarkierung(self):
         self.markierung = None
-        self.changed.emit()
     
     def getCharFarbe(self) -> str:
         return self.colorMap(self.char)

@@ -247,9 +247,9 @@ class SequenzEditor(QMainWindow):
             return
         with open(filename, 'w') as file:
             json.dump({
-                'markierungen': self._sequenzmodel.markierungen(),
-                'versteckt': self._sequenzmodel.versteckt(),
-                'sequenzen': self._sequenzmodel.sequenzen()
+                'markierungen': self._sequenzmodel.markierungen,
+                'versteckt': self._sequenzmodel.versteckt,
+                'sequenzen': self._sequenzmodel.sequenzen
             }, file, cls=SequenzenEncoder)
         self._ungespeichert = False
 
