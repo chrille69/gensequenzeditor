@@ -28,7 +28,7 @@ class BaseDialog(QDialog):
         gb_insertbasen = QGroupBox('Basen einfügen',self)
         nummerohne = base.getNummerInSequenzOhneLeer()
         nummermit = base.getIndexInSequenz()+1
-        vbox.addWidget(QLabel(f'Base: {base.char()}'))
+        vbox.addWidget(QLabel(f'Base: {base.char}'))
         vbox.addWidget(QLabel(f'Basennummer mit Leerstellen: {nummermit}'))
         vbox.addWidget(QLabel(f'Basennummer ohne Leerstellen: {nummerohne}'))
         vbox.addWidget(gb_leerbasen)
@@ -53,7 +53,7 @@ class BaseDialog(QDialog):
         self._sb_markieranzahl.setRange(1,99999)
         self._cb_markierbasen = QComboBox()
         self._cb_markierbasen.addItems(self._auswahltexte)
-        self._cb_markierbasen.setCurrentIndex(self._auswahltexte.index(self._base.markierung().beschreibung() if self._base.markierung() else self.nonebasetext))
+        self._cb_markierbasen.setCurrentIndex(self._auswahltexte.index(self._base.markierung.beschreibung() if self._base.markierung else self.nonebasetext))
         hbox_markierbasen.addWidget(QLabel('Anzahl'))
         hbox_markierbasen.addWidget(self._sb_markieranzahl)
         hbox_markierbasen.addStretch()

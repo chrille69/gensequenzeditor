@@ -113,27 +113,31 @@ class Base(QObject):
         self._markierung = None
         self._mtxt = _mtxt
 
+    @property
     def char(self) -> str:
         return self._char
 
+    @property
     def sequenz(self) -> Sequenz:
         return self._sequenz
 
+    @property
     def markierung(self) -> 'Markierung':
         return self._markierung
 
     def getIndexInSequenz(self) -> int:
-        return self._sequenz.basen.index(self)
+        return self.sequenz.basen.index(self)
 
     def getNummerInSequenzOhneLeer(self) -> int:
         nummer = 1
-        for base in self._sequenz.basen:
+        for base in self.sequenz.basen:
             if base == self:
                 return nummer
-            if base.char() != '~':
+            if base.char != '~':
                 nummer += 1
 
-    def setMarkierung(self, markierung: 'Markierung'):
+    @markierung.setter
+    def markierung(self, markierung: 'Markierung'):
         self._markierung = markierung
         if self._markierung:
             self._markierung.deleted.connect(self.removeMarkierung)
@@ -141,25 +145,25 @@ class Base(QObject):
         self.changed.emit()
 
     def removeMarkierung(self):
-        self._markierung = None
+        self.markierung = None
         self.changed.emit()
     
     def getCharFarbe(self) -> str:
-        return self.colorMap(self._char)
+        return self.colorMap(self.char)
 
     def getBoxFarbe(self) -> str:
         farbe = ''
-        if self._markierung:
-            farbe = self._markierung.farbe()
+        if self.markierung:
+            farbe = self.markierung.farbe()
         return farbe
 
     def __str__(self) -> str:
         return 'Base'+str(self.__hash__())
 
     def to_json(self) -> str:
-        basedict = {'_char': self._char}
+        basedict = {'_char': self.char}
         if self._markierung:
-            basedict['_mtxt'] = self._markierung.beschreibung()
+            basedict['_mtxt'] = self.markierung.beschreibung()
         return basedict
 
 

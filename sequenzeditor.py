@@ -204,7 +204,7 @@ class SequenzEditor(QMainWindow):
         for s in sequenzen:
             for b in s.basen:
                 if b._mtxt:
-                    b.setMarkierung(mtxtdict[b._mtxt])
+                    b.markierung = mtxtdict[b._mtxt]
                     del b._mtxt
         self._sequenzmodel.setAll(sequenzen, markierungen, versteckt)
         self._ungespeichert = ungespeichert

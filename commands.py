@@ -67,7 +67,7 @@ class InsertLeerBaseCommand(QUndoCommand):
     def __init__(self, base: Base, anzahl: int):
         super(InsertLeerBaseCommand, self).__init__('Insert leer')
         self.pos = base.getIndexInSequenz()
-        self.sequenz = base.sequenz()
+        self.sequenz = base.sequenz
         self.anazhl = anzahl
         self.basen = self.sequenz.createLeereBasen(anzahl)
 
@@ -83,23 +83,23 @@ class MarkiereBasenCommand(QUndoCommand):
     def __init__(self, base: Base, anzahl: int, markierung: Markierung):
         super(MarkiereBasenCommand, self).__init__('Basen markiert')
         index = base.getIndexInSequenz()
-        sequenz = base.sequenz()
+        sequenz = base.sequenz
         neu_markiert = sequenz.basen[index:index+anzahl]
-        self.basen_mark_alt = {}
-        self.basen_mark_neu = {}
+        self.basen_mark_alt: dict[Base,Markierung] = {}
+        self.basen_mark_neu: dict[Base,Markierung] = {}
         for b in sequenz.basen:
-            self.basen_mark_alt[b] = b.markierung()
-            self.basen_mark_neu[b] = b.markierung()
+            self.basen_mark_alt[b] = b.markierung
+            self.basen_mark_neu[b] = b.markierung
             if b in neu_markiert:
                 self.basen_mark_neu[b] = markierung
 
     def redo(self):
         for b in self.basen_mark_neu:
-            b.setMarkierung(self.basen_mark_neu[b])
+            b.markierung = self.basen_mark_neu[b]
 
     def undo(self):
         for b in self.basen_mark_alt:
-            b.setMarkierung(self.basen_mark_alt[b])
+            b.markierung = self.basen_mark_alt[b]
 
 
 class EntferneBaseCommand(QUndoCommand):
@@ -107,7 +107,7 @@ class EntferneBaseCommand(QUndoCommand):
     def __init__(self, base: Base, anzahl: int):
         super(EntferneBaseCommand, self).__init__('Entferne Basen')
         self.pos = base.getIndexInSequenz()
-        self.sequenz = base.sequenz()
+        self.sequenz = base.sequenz
         self.anzahl = anzahl
         self.basen = []
 
@@ -123,7 +123,7 @@ class InsertBaseCommand(QUndoCommand):
     def __init__(self, base: Base, seqtext: int):
         super(InsertBaseCommand, self).__init__('Insert Basen')
         self.pos = base.getIndexInSequenz()
-        self.sequenz = base.sequenz()
+        self.sequenz = base.sequenz
         self.basen = self.sequenz.createBasenFromString(seqtext)
 
     def redo(self):

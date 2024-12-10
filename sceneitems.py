@@ -38,6 +38,7 @@ class SequenzItem(QGraphicsRectItem):
     def addRoteLinie(self, x: int, y: int):
         RotelinieItem(self, x, y, basenlaenge)
 
+    @property
     def sequenz(self) -> Sequenz:
         return self._sequenz
 
@@ -92,7 +93,7 @@ class SequenznameItem(QGraphicsRectItem):
         self.setBrush(Qt.NoBrush)
 
     def mousePressEvent(self, *args):
-        self.scene().sequenzNameClicked.emit(self.parentItem().sequenz())
+        self.scene().sequenzNameClicked.emit(self.parentItem().sequenz)
 
 
 class BaseItem(QGraphicsRectItem):
@@ -102,12 +103,11 @@ class BaseItem(QGraphicsRectItem):
         self._base = base
         self._versteckt = versteckt
         self.brush = Qt.NoBrush
-        char = base.char()
         self.setBoxfarbe()
         self.setPen(Qt.NoPen)
-        gchar = QGraphicsSimpleTextItem(char, parent)
+        gchar = QGraphicsSimpleTextItem(base.char, parent)
         gchar.setFont(basefont)
-        gcharw = basefm.horizontalAdvance(char)
+        gcharw = basefm.horizontalAdvance(base.char)
         gcharh = basefm.height()
         gchar.setPos(x+basenlaenge/2-gcharw/2, y+basenlaenge/2-gcharh/2)
         gchar.setBrush(QColor(base.getCharFarbe()))
