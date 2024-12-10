@@ -7,6 +7,7 @@ log = logging.getLogger(__name__)
 
 
 class SequenzenViewModel(QObject):
+    """Model zur Ansicht der Sequenzen"""
 
     changed = Signal()
 
@@ -18,6 +19,7 @@ class SequenzenViewModel(QObject):
 
     @property
     def umbruch(self) -> bool:
+        "Soll ein Zeilenumbruch gemacht werden? Wenn nicht, werden die Sequenzen in einer langen Zeile angezeigt."
         return self._umbruch
     
     @umbruch.setter
@@ -27,6 +29,7 @@ class SequenzenViewModel(QObject):
 
     @property
     def spaltenzahl(self) -> bool:
+        "Für umbruch: Wie viele Basen sollen in einer Zeile angezeigt werden."
         return self._spaltenzahl
     
     @spaltenzahl.setter
@@ -36,6 +39,7 @@ class SequenzenViewModel(QObject):
 
     @property
     def zeigeversteckt(self) -> bool:
+        "Sollen versteckte Basen angezeigt werden? Falls ja, sind sie grau unterlegt."
         return self._zeigeversteckt
     
     @zeigeversteckt.setter

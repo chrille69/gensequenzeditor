@@ -411,6 +411,7 @@ if __name__ == "__main__":
 
     app.setWindowIcon(QIcon(QPixmap(':/images/oszli-icon.ico')))
     d = SequenzEditor()
+    d.resize(1000, 600)
     d.show()
     filenames = sys.argv[1:2]
     if filenames:
