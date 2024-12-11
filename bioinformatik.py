@@ -2,6 +2,7 @@
 import re
 from PySide6.QtCore import QObject, Signal
 
+gaga=1
 
 class Sequenz(QObject):
     """
