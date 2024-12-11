@@ -41,7 +41,7 @@ class SequenzenScene(QGraphicsScene):
         self.sequencenItems = QGraphicsRectItem()
         self.keineSequenzText = self.createkeineSequenzenVorhanden()
 
-        #self.keineSequenzText.setVisible(False)
+        self.keineSequenzText.setVisible(False)
 
         self.addItem(self.markierungenItems)
         self.addItem(self.sequencenItems)
