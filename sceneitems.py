@@ -40,23 +40,24 @@ def deleteItemArray(itemarray: list[QGraphicsItem]):
 
 class SequenzItem(QGraphicsRectItem):
 
-    def __init__(self, parent, sequenz: Sequenz, model: SequenzenModel, viewmodel: SequenzenViewModel):
+    def __init__(self, parent, sequenz: Sequenz, model: SequenzenModel, viewmodel: SequenzenViewModel, linealitem: 'LinealItem'):
         super().__init__(parent)
         self._sequenz = sequenz
         self._model = model
         self._viewmodel = viewmodel
+        self._linealitem = linealitem
         self._seqidx = self.model.sequenzen.index(self.sequenz)
         self._baseitems: list[BaseItem] = []
         self._nameitems: list[SequenznameItem] = []
 
-        self.viewmodel.spaltenzahlChanged.connect(self.umbruchTrigger)
-        self.viewmodel.umbruchChanged.connect(self.umbruchTrigger)
-        self.viewmodel.zeigeverstecktChanged.connect(self.umbruchTrigger)
+        self.viewmodel.spaltenzahlChanged.connect(self.umbrechen)
+        self.viewmodel.umbruchChanged.connect(self.umbrechen)
+        self.viewmodel.zeigeverstecktChanged.connect(self.umbrechen)
         self.model.verstecktAdded.connect(self.versteckeBasen)
         self.model.verstecktRemoved.connect(self.enttarneBasen)
         self.sequenz.basenRenewed.connect(self.erzeugeBasen)
-#        self.sequenz.basenInserted.connect(self._sequenzZeichnenTrigger)
-#        self.sequenz.basenRemoved.connect(self._sequenzZeichnenTrigger)
+        self.sequenz.basenInserted.connect(self.insertBasenItems)
+        self.sequenz.basenRemoved.connect(self.removeBasenItems)
 
         self.erzeugeNamen()
         self.erzeugeBasen()
@@ -87,7 +88,7 @@ class SequenzItem(QGraphicsRectItem):
             self._baseitems[index].versteckt = False
         self.setBasenPos()
 
-    def umbruchTrigger(self, *arg):
+    def umbrechen(self, *arg):
         self.erzeugeNamen()
         self.setBasenPos()
 
@@ -129,6 +130,18 @@ class SequenzItem(QGraphicsRectItem):
 
             col += 1
 
+    def insertBasenItems(self, pos: int, basen: list[Base]):
+        self._baseitems[pos:pos] = [BaseItem(self, base) for base in basen]
+        self.setBasenPos()
+        self._linealitem.erzeugeTicks()
+
+    def removeBasenItems(self, pos: int, basen: list[Base]):
+        anzahl = len(basen)
+        for baseitem in self._baseitems[pos:pos+anzahl]:
+            baseitem.setParentItem(None)
+        self._baseitems[pos:pos+anzahl] = []
+        self.setBasenPos()
+        self._linealitem.erzeugeTicks()
 
 class SequenznameItem(QGraphicsRectItem):
 
@@ -236,7 +249,7 @@ class LinealItem(QGraphicsRectItem):
         self.model.verstecktRemoved.connect(self.enttarneTicks)
 
         self.erzeugeTicks()
-        self.setTicksPos()
+
 
     @property
     def model(self):
@@ -251,7 +264,8 @@ class LinealItem(QGraphicsRectItem):
 
         for idx in range(self.model.maxlen):
             self._ticks.append(LinealtickItem(self, idx))
-
+        self.setTicksPos()
+        
     def versteckeTicks(self, idxlist: list[int]):
         for index in idxlist:
             self._ticks[index].versteckt = True

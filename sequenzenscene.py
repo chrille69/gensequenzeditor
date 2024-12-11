@@ -34,23 +34,24 @@ class SequenzenScene(QGraphicsScene):
         self._model = sequenzenmodel
         self._viewmodel = sequenzenviewmodel
         self.vorgängerMarkierungItem: MarkierungItem = None
-        self.keineSequenzText = self.createkeineSequenzenVorhanden()
+        self.keineSequenzBemerkung = self.createkeineSequenzenBemerkung()
         self.verstecktBemerkung = self.createVerstecktBemerkung()
         self.markierungenItems = QGraphicsRectItem()
         self.sequencenItems = QGraphicsRectItem()
         self.addItem(self.markierungenItems)
         self.addItem(self.sequencenItems)
 
-        self.verstecktBemerkung.setPos(basenlaenge, rahmendicke)
-        self.keineSequenzText.setPos(sequenznamewidth+rahmendicke, 6*basenlaenge)
+        self.verstecktBemerkung.setPos(basenlaenge, 3*basenlaenge)
+        self.keineSequenzBemerkung.setPos(sequenznamewidth+rahmendicke, 6*basenlaenge)
         self.sequencenItems.setPos(0, 6*basenlaenge)
         self.markierungenItems.setPos(sequenznamewidth+rahmendicke, 2*basenlaenge)
 
         self.model.sequenzenChanged.connect(self.sequenzenZeichnen)
         self.model.markierungenChanged.connect(self.markierungenZeichnen)
+        self.model.verstecktAdded.connect(self.setzeVerstecktBemerkung)
+        self.model.verstecktRemoved.connect(self.setzeVerstecktBemerkung)
 
-        self.keineSequenzText.setVisible(False)
-        self.verstecktBemerkung.setVisible(False)
+        self.verstecktBemerkung.setVisible(len(self.model.versteckt) != 0)
         self.setBackgroundBrush(Qt.white)
         self.sequenzenZeichnen()
         self.markierungenZeichnen()
@@ -67,9 +68,13 @@ class SequenzenScene(QGraphicsScene):
         for item in self.sequencenItems.childItems():
             item.setParentItem(None)
 
-        LinealItem(self.sequencenItems, self.model, self.viewmodel)
-        for sequenz in self.model.sequenzen:
-            SequenzItem(self.sequencenItems, sequenz, self.model, self.viewmodel)
+        linealitem = LinealItem(self.sequencenItems, self.model, self.viewmodel)
+        if self.model.sequenzen:
+            self.keineSequenzBemerkung.setVisible(False)
+            for sequenz in self.model.sequenzen:
+                SequenzItem(self.sequencenItems, sequenz, self.model, self.viewmodel, linealitem)
+        else:
+            self.keineSequenzBemerkung.setVisible(True)
 
     def markierungenZeichnen(self):
         while self.vorgängerMarkierungItem:
@@ -80,7 +85,7 @@ class SequenzenScene(QGraphicsScene):
         for markierung in self.model.markierungen:
             self.vorgängerMarkierungItem = MarkierungItem(self.markierungenItems, self.vorgängerMarkierungItem, markierung)
 
-    def createkeineSequenzenVorhanden(self):
+    def createkeineSequenzenBemerkung(self):
         """Zeichnet einen Infotext, falls keine Sequenzen vorhanden sind."""
 
         txt = 'Keine Sequenzen vorhanden. Bitte Sequenz erzeugen, laden oder importieren.'
@@ -96,3 +101,5 @@ class SequenzenScene(QGraphicsScene):
         textitem.setDefaultTextColor(Qt.black)
         return textitem
 
+    def setzeVerstecktBemerkung(self, *_):
+        self.verstecktBemerkung.setVisible(len(self.model.versteckt) != 0)
