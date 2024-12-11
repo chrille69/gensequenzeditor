@@ -250,7 +250,6 @@ class LinealItem(QGraphicsRectItem):
 
         self.erzeugeTicks()
 
-
     @property
     def model(self):
         return self._model

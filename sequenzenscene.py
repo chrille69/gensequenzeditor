@@ -48,8 +48,8 @@ class SequenzenScene(QGraphicsScene):
 
         self.model.sequenzenChanged.connect(self.sequenzenZeichnen)
         self.model.markierungenChanged.connect(self.markierungenZeichnen)
-        self.model.verstecktAdded.connect(self.setzeVerstecktBemerkung)
-        self.model.verstecktRemoved.connect(self.setzeVerstecktBemerkung)
+        self.model.verstecktAdded.connect(self.pruefeVersteckt)
+        self.model.verstecktRemoved.connect(self.pruefeVersteckt)
 
         self.verstecktBemerkung.setVisible(len(self.model.versteckt) != 0)
         self.setBackgroundBrush(Qt.white)
@@ -101,5 +101,5 @@ class SequenzenScene(QGraphicsScene):
         textitem.setDefaultTextColor(Qt.black)
         return textitem
 
-    def setzeVerstecktBemerkung(self, *_):
+    def pruefeVersteckt(self):
         self.verstecktBemerkung.setVisible(len(self.model.versteckt) != 0)
