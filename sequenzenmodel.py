@@ -9,7 +9,9 @@ log = logging.getLogger(__name__)
 class SequenzenViewModel(QObject):
     """Model zur Ansicht der Sequenzen"""
 
-    changed = Signal()
+    zeigeverstecktChanged = Signal(bool)
+    spaltenzahlChanged = Signal(int)
+    umbruchChanged = Signal(bool)
 
     def __init__(self, parent, umbruch: bool = True, spaltenzahl: int = 50, zeigeversteckt: bool = False):
         super().__init__(parent)
@@ -25,7 +27,7 @@ class SequenzenViewModel(QObject):
     @umbruch.setter
     def umbruch(self, value) -> bool:
         self._umbruch = value
-        self.changed.emit()
+        self.umbruchChanged.emit(value)
 
     @property
     def spaltenzahl(self) -> bool:
@@ -35,7 +37,7 @@ class SequenzenViewModel(QObject):
     @spaltenzahl.setter
     def spaltenzahl(self, value) -> bool:
         self._spaltenzahl = value
-        self.changed.emit()
+        self.spaltenzahlChanged.emit(value)
 
     @property
     def zeigeversteckt(self) -> bool:
@@ -45,7 +47,7 @@ class SequenzenViewModel(QObject):
     @zeigeversteckt.setter
     def zeigeversteckt(self, value) -> bool:
         self._zeigeversteckt = value
-        self.changed.emit()
+        self.zeigeverstecktChanged.emit(value)
 
 
 class SequenzenModel(QObject):
