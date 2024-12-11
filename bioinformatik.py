@@ -39,7 +39,7 @@ class Sequenz(QObject):
         return [Base(self, char) for char in text]
 
     def createLeereBasen(self, anzahl: int):
-        return [Base(self, _char='~') for _ in range(anzahl)]
+        return [Base(self) for _ in range(anzahl)]
     
     def inAminosaeure(self):
         neueBasen = []
@@ -106,10 +106,11 @@ class Base(QObject):
 
     changed = Signal()
 
-    def __init__(self, _sequenz: Sequenz, _char: str = '~', _mtxt: str = None):
+    def __init__(self, _sequenz: Sequenz, _char: str = '~', _mtxt: str = None, _versteckt: bool = False):
         super().__init__()
         self._sequenz = _sequenz
         self._char = _char
+        self._versteckt = _versteckt
         self._markierung = None
         self._mtxt = _mtxt
 
@@ -125,6 +126,23 @@ class Base(QObject):
     def markierung(self) -> 'Markierung':
         return self._markierung
 
+    @markierung.setter
+    def markierung(self, markierung: 'Markierung'):
+        self._markierung = markierung
+        if self._markierung:
+            self._markierung.deleted.connect(self.removeMarkierung)
+            self._markierung.farbeChanged.connect(self.changed.emit)
+        self.changed.emit()
+
+    @property
+    def versteckt(self):
+        return self._versteckt
+
+    @versteckt.setter
+    def versteckt(self, value):
+        self._versteckt = value
+        self.changed.emit(value)
+
     def getIndexInSequenz(self) -> int:
         return self.sequenz.basen.index(self)
 
@@ -135,14 +153,6 @@ class Base(QObject):
                 return nummer
             if base.char != '~':
                 nummer += 1
-
-    @markierung.setter
-    def markierung(self, markierung: 'Markierung'):
-        self._markierung = markierung
-        if self._markierung:
-            self._markierung.deleted.connect(self.removeMarkierung)
-            self._markierung.farbeChanged.connect(self.changed.emit)
-        self.changed.emit()
 
     def removeMarkierung(self):
         self.markierung = None
