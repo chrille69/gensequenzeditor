@@ -16,9 +16,10 @@ from markierungenWidget import MarkierungenVerwalten
 from sequenzenscene import SequenzenScene
 from sequenzenmodel import SequenzenModel, SequenzenViewModel
 from dialoge import NeueSequenzDialog, BaseDialog, SequenzDialog, LinealDialog
-from commands import (RemoveMarkierungCommand, changeColorMarkierungCommand, changeBeschreibungMarkierungCommand, AddMarkierungCommand,
-                      RenameSequenzCommand, AminosaeureSequenzCommand, RemoveSequenzenCommand, AddSequenzenCommand,
-                      InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand, VerstecktCommand, EnttarnenCommand, MarkiereBasenCommand
+from commands import (
+    RemoveMarkierungCommand, changeColorMarkierungCommand, changeBeschreibungMarkierungCommand, AddMarkierungCommand,
+    RenameSequenzCommand, AminosaeureSequenzCommand, RemoveSequenzenCommand, AddSequenzenCommand,
+    InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand, VerstecktCommand, EnttarnenCommand, MarkiereBasenCommand
 )
 
 import resources
@@ -44,14 +45,10 @@ class SequenzEditor(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        sequenzen = []
-        versteckt = []
-        markierungen = []
-
         self._main = QWidget(self)
         self._mainlayout = QHBoxLayout()
         self._main.setLayout(self._mainlayout)
-        self._sequenzmodel = SequenzenModel(self, sequenzen, markierungen, versteckt)
+        self._sequenzmodel = SequenzenModel(self)
         self._viewmodel = SequenzenViewModel(self)
         self._sequenzscene = SequenzenScene(self, self._sequenzmodel, self._viewmodel)
         self._grafik = QGraphicsView(self._sequenzscene)

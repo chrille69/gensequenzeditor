@@ -54,13 +54,14 @@ class SequenzenModel(QObject):
 
     sequenzenChanged = Signal()
     markierungenChanged = Signal()
-    verstecktChanged = Signal()
+    verstecktAdded = Signal(list)
+    verstecktRemoved = Signal(list)
 
-    def __init__(self, parent: QObject, sequenzen: list[Sequenz] = None, markierungen: list[Markierung] = None, versteckt: list[range] = None):
+    def __init__(self, parent: QObject, sequenzen: list[Sequenz] = None, markierungen: list[Markierung] = None, versteckt: list[int] = None):
         super().__init__(parent)
-        self._sequenzen = sequenzen or []
-        self._markierungen = markierungen or []
-        self._versteckt = versteckt or []
+        self._sequenzen: list[Sequenz] = sequenzen or []
+        self._markierungen: list[Markierung] = markierungen or []
+        self._versteckt: list[int] = versteckt or []
 
     @property
     def sequenzen(self) -> list[Sequenz]:
@@ -73,6 +74,12 @@ class SequenzenModel(QObject):
     @property
     def versteckt(self) -> list[bool]:
         return self._versteckt
+
+    @property
+    def maxlen(self):
+        if not self.sequenzen:
+            return 0
+        return max([len(sequenz.basen) for sequenz in self.sequenzen])
 
     def getAllCopy(self):
         return self._sequenzen.copy(), self._markierungen.copy(), self.versteckt.copy()
@@ -101,11 +108,11 @@ class SequenzenModel(QObject):
         self._markierungen.remove(markierung)
         self.markierungenChanged.emit()
 
-    def addVersteckt(self, arr: list[range]):
+    def addVersteckt(self, arr: list[int]):
         self._versteckt += arr
-        self.verstecktChanged.emit()
+        self.verstecktAdded.emit(arr)
 
-    def removeVersteckt(self, arr: list[range]):
+    def removeVersteckt(self, arr: list[int]):
         for col in arr:
             col in self._versteckt and self._versteckt.remove(col)
-        self.verstecktChanged.emit()
+        self.verstecktRemoved.emit(arr)

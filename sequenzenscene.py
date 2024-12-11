@@ -1,7 +1,6 @@
 
 import logging
 from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui import QColor
 
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsRectItem
 from sceneitems import basenlaenge, sequenznamewidth, rahmendicke, SequenzItem, LinealItem, MarkierungItem
@@ -18,8 +17,6 @@ class SequenzenScene(QGraphicsScene):
     Eine Sicht auf die Sequenzen
 
     Stellt die Sequenzen in einem Canvas dar.
-
-    Reicht Events mit Hilfe von Callbacks an den Hauptdialog weiter.
     """
 
     baseClicked = Signal(Base)
@@ -37,22 +34,26 @@ class SequenzenScene(QGraphicsScene):
         self._model = sequenzenmodel
         self._viewmodel = sequenzenviewmodel
         self.vorgängerMarkierungItem: MarkierungItem = None
+        self.keineSequenzText = self.createkeineSequenzenVorhanden()
+        self.verstecktBemerkung = self.createVerstecktBemerkung()
         self.markierungenItems = QGraphicsRectItem()
         self.sequencenItems = QGraphicsRectItem()
-        self.keineSequenzText = self.createkeineSequenzenVorhanden()
-
-        self.keineSequenzText.setVisible(False)
-
         self.addItem(self.markierungenItems)
         self.addItem(self.sequencenItems)
+
+        self.verstecktBemerkung.setPos(basenlaenge, rahmendicke)
+        self.keineSequenzText.setPos(sequenznamewidth+rahmendicke, 6*basenlaenge)
         self.sequencenItems.setPos(0, 6*basenlaenge)
         self.markierungenItems.setPos(sequenznamewidth+rahmendicke, 2*basenlaenge)
 
-        self.model.sequenzenChanged.connect(self.allesZeichnen)
-        self.model.markierungenChanged.connect(self._markierungenZeichnen)
+        self.model.sequenzenChanged.connect(self.sequenzenZeichnen)
+        self.model.markierungenChanged.connect(self.markierungenZeichnen)
 
+        self.keineSequenzText.setVisible(False)
+        self.verstecktBemerkung.setVisible(False)
         self.setBackgroundBrush(Qt.white)
-        self.allesZeichnen()
+        self.sequenzenZeichnen()
+        self.markierungenZeichnen()
 
     @property
     def model(self):
@@ -62,31 +63,15 @@ class SequenzenScene(QGraphicsScene):
     def viewmodel(self):
         return self._viewmodel
 
-    def allesZeichnen(self):
+    def sequenzenZeichnen(self):
+        for item in self.sequencenItems.childItems():
+            item.setParentItem(None)
 
-        self._markierungenZeichnen()
-        self._verstecktBemerkungZeichnen()
-        self._linealZeichnen()
-
-        for sequenz in self.model.sequenzen:
-            self._sequenzZeichnen(sequenz)
-
-    def _sequenzZeichnen(self, sequenz: Sequenz = None):
-        SequenzItem(self.sequencenItems, sequenz, self.model, self.viewmodel)
-
-    def _linealZeichnen(self):
         LinealItem(self.sequencenItems, self.model, self.viewmodel)
-    
-    def _verstecktBemerkungZeichnen(self):
-        """Zeichnet einen Infotext, wenn keine Markierungen vorhanden sind."""
+        for sequenz in self.model.sequenzen:
+            SequenzItem(self.sequencenItems, sequenz, self.model, self.viewmodel)
 
-        if not self.model.versteckt:
-            return
-        objektid = self.addText('Es gibt versteckte Spalten')
-        objektid.setDefaultTextColor(Qt.black)
-        objektid.setPos(basenlaenge, rahmendicke)
-
-    def _markierungenZeichnen(self):
+    def markierungenZeichnen(self):
         while self.vorgängerMarkierungItem:
             markierungitem = self.vorgängerMarkierungItem
             self.vorgängerMarkierungItem = self.vorgängerMarkierungItem.vorgänger
@@ -98,11 +83,16 @@ class SequenzenScene(QGraphicsScene):
     def createkeineSequenzenVorhanden(self):
         """Zeichnet einen Infotext, falls keine Sequenzen vorhanden sind."""
 
-        x = rahmendicke
-        y = rahmendicke
         txt = 'Keine Sequenzen vorhanden. Bitte Sequenz erzeugen, laden oder importieren.'
         textitem = self.addText(txt)
         textitem.setDefaultTextColor(Qt.black)
-        textitem.setPos(x,y)
         textitem.setTextWidth(sequenznamewidth-10)
         return textitem
+    
+    def createVerstecktBemerkung(self):
+        """Zeichnet einen Infotext, wenn Spalten versteckt sind."""
+
+        textitem = self.addText('Es gibt versteckte Spalten')
+        textitem.setDefaultTextColor(Qt.black)
+        return textitem
+

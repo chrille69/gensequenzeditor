@@ -52,7 +52,8 @@ class SequenzItem(QGraphicsRectItem):
         self.viewmodel.spaltenzahlChanged.connect(self.umbruchTrigger)
         self.viewmodel.umbruchChanged.connect(self.umbruchTrigger)
         self.viewmodel.zeigeverstecktChanged.connect(self.umbruchTrigger)
-        self.model.verstecktChanged.connect(self.umbruchTrigger)
+        self.model.verstecktAdded.connect(self.versteckeBasen)
+        self.model.verstecktRemoved.connect(self.enttarneBasen)
         self.sequenz.basenRenewed.connect(self.erzeugeBasen)
 #        self.sequenz.basenInserted.connect(self._sequenzZeichnenTrigger)
 #        self.sequenz.basenRemoved.connect(self._sequenzZeichnenTrigger)
@@ -75,6 +76,16 @@ class SequenzItem(QGraphicsRectItem):
     @property
     def seqidx(self) -> Sequenz:
         return self._seqidx
+
+    def versteckeBasen(self, idxlist: list[int]):
+        for index in idxlist:
+            self._baseitems[index].versteckt = True
+        self.setBasenPos()
+
+    def enttarneBasen(self, idxlist: list[int]):
+        for index in idxlist:
+            self._baseitems[index].versteckt = False
+        self.setBasenPos()
 
     def umbruchTrigger(self, *arg):
         self.erzeugeNamen()
@@ -162,10 +173,10 @@ class SequenznameItem(QGraphicsRectItem):
 
 class BaseItem(QGraphicsRectItem):
 
-    def __init__(self, parent, base: Base, versteckt: bool = False):
+    def __init__(self, parent, base: Base):
         super().__init__(0, 0, basenlaenge, basenlaenge, parent)
         self._base = base
-        self._versteckt = versteckt
+        self._versteckt = False
         self.brush = Qt.NoBrush
         self.setBoxfarbe()
         self.setPen(Qt.NoPen)
@@ -178,13 +189,26 @@ class BaseItem(QGraphicsRectItem):
         self.setAcceptHoverEvents(True)
         base.changed.connect(self.setBoxfarbe)
 
+    @property
+    def base(self):
+        return self._base
+    
+    @property
+    def versteckt(self):
+        return self._versteckt
+    
+    @versteckt.setter
+    def versteckt(self, value):
+        self._versteckt = value
+        self.setBoxfarbe()
+
     def setBoxfarbe(self):
         boxfarbe = self._base.getBoxFarbe()
         if boxfarbe:
             self.brush = QColor(boxfarbe)
         else:
             self.brush = Qt.NoBrush
-        if self._versteckt:
+        if self.versteckt:
             self.brush = brushversteckt
         self.setBrush(self.brush)
         
@@ -208,7 +232,8 @@ class LinealItem(QGraphicsRectItem):
         self.viewmodel.spaltenzahlChanged.connect(self.setTicksPos)
         self.viewmodel.umbruchChanged.connect(self.setTicksPos)
         self.viewmodel.zeigeverstecktChanged.connect(self.setTicksPos)
-        self.model.verstecktChanged.connect(self.setTicksPos)
+        self.model.verstecktAdded.connect(self.versteckeTicks)
+        self.model.verstecktRemoved.connect(self.enttarneTicks)
 
         self.erzeugeTicks()
         self.setTicksPos()
@@ -221,17 +246,21 @@ class LinealItem(QGraphicsRectItem):
     def viewmodel(self):
         return self._viewmodel
 
-    @property
-    def maxlen(self):
-        if not self.model.sequenzen:
-            return 0
-        return max([len(sequenz.basen) for sequenz in self.model.sequenzen])
-
     def erzeugeTicks(self):
         deleteItemArray(self._ticks)
 
-        for idx in range(self.maxlen):
+        for idx in range(self.model.maxlen):
             self._ticks.append(LinealtickItem(self, idx))
+
+    def versteckeTicks(self, idxlist: list[int]):
+        for index in idxlist:
+            self._ticks[index].versteckt = True
+        self.setTicksPos()
+
+    def enttarneTicks(self, idxlist: list[int]):
+        for index in idxlist:
+            self._ticks[index].versteckt = False
+        self.setTicksPos()
 
     def setTicksPos(self):
         col = 0
@@ -240,7 +269,7 @@ class LinealItem(QGraphicsRectItem):
             x, y = xyFromColSeqidx(col, -2, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
             tickitem.setPos(x, y)
 
-            aktuellversteckt = tickidx in self.model.versteckt
+            aktuellversteckt = tickitem.versteckt
             if aktuellversteckt and not self.viewmodel.zeigeversteckt:
                 tickitem.setVisible(False)
                 continue
@@ -255,9 +284,10 @@ class LinealtickItem(QGraphicsRectItem):
     def __init__(self, parent: LinealItem, idx: int):
         super().__init__(0, 0, basenlaenge, 2*basenlaenge, parent)
         self._idx = idx
-        self._brush = Qt.NoBrush
-        self.setBrush(self._brush)
+        self._versteckt = False
+        self.brush = Qt.NoBrush
         self.setPen(Qt.NoPen)
+        self.setBoxfarbe()
         self.setZValue(-10)
         nummer = idx+1
         marke = '∙'
@@ -275,17 +305,31 @@ class LinealtickItem(QGraphicsRectItem):
         gchar.setPos(basenlaenge/2-gcharw/2, basenlaenge)
         self.setAcceptHoverEvents(True)
 
-    def setVersteckt(self, value):
-        if value:
-            self._brush = brushversteckt
+    @property
+    def idx(self):
+        return self._idx
+    
+    @property
+    def versteckt(self):
+        return self._versteckt
+    
+    @versteckt.setter
+    def versteckt(self, value):
+        self._versteckt = value
+        self.setBoxfarbe()
+
+    def setBoxfarbe(self):
+        if self.versteckt:
+            self.brush = brushversteckt
         else:
             self.brush = Qt.NoBrush
+        self.setBrush(self.brush)
         
     def hoverEnterEvent(self, event):
         self.setBrush(brushhighlight)
 
     def hoverLeaveEvent(self, event):
-        self.setBrush(self._brush)
+        self.setBrush(self.brush)
 
     def mousePressEvent(self, *args):
         self.scene().linealClicked.emit(self._idx)

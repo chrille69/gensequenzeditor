@@ -227,10 +227,10 @@ class LinealDialog(QDialog):
         btn_enttarnen.clicked.connect(self.enttarnen)
 
     def verstecken(self):
-        self.basenVerstecken.emit(range(self.column, self.column+self._sb_verstecken.value()))
+        self.basenVerstecken.emit(list(range(self.column, self.column+self._sb_verstecken.value())))
         self.close()
 
     def enttarnen(self):
-        self.basenEnttarnen.emit(range(self.column, self.column+self._sb_enttarnen.value()))
+        self.basenEnttarnen.emit(list(range(self.column, self.column+self._sb_enttarnen.value())))
         self.close()
 
