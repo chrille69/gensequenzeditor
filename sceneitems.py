@@ -49,6 +49,7 @@ class SequenzItem(QGraphicsRectItem):
         self._seqidx = self.model.sequenzen.index(self.sequenz)
         self._baseitems: list[BaseItem] = []
         self._nameitems: list[SequenznameItem] = []
+        self._rotelinien: list[RotelinieItem] = []
 
         self.viewmodel.spaltenzahlChanged.connect(self.umbrechen)
         self.viewmodel.umbruchChanged.connect(self.umbrechen)
@@ -111,42 +112,48 @@ class SequenzItem(QGraphicsRectItem):
         self.setBasenPos()
 
     def setBasenPos(self):
-        col = 0
-        for basidx in range(len(self._baseitems)):
-            # Weil einige Basen versteckt sein können, ist die Spalte col
-            # nicht mir dem Basenindex basidx identisch.
+        deleteItemArray(self._rotelinien)
 
-            baseitem = self._baseitems[basidx]
+        roteLinieSchonDa = False
+        col = 0
+        for idx, baseitem in enumerate(self._baseitems):
+            # Weil einige Basen versteckt sein können, ist die Spalte col
+            # nicht mit dem Basenindex basidx identisch.
+
             x, y = xyFromColSeqidx(col, self.seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
             baseitem.setPos(x, y)
 
             # Hier wird entschieden, ob das Item versteckt werden soll.
-            aktuellversteckt = basidx in self.model.versteckt
+            aktuellversteckt = idx in self.model.versteckt
             if aktuellversteckt and not self.viewmodel.zeigeversteckt:
+                if not roteLinieSchonDa:
+                    self._rotelinien.append(RotelinieItem(self, x, y, basenlaenge))
+                    roteLinieSchonDa = True
                 baseitem.setVisible(False)
                 continue
             else:
                 baseitem.setVisible(True)
-
+            roteLinieSchonDa = False
             col += 1
 
-    def updateVersteckt():
-        pass
+    def updateVersteckt(self, pos):
+        for idx, baseitem in enumerate(self._baseitems[pos:], pos):
+            baseitem.versteckt = idx in self.model.versteckt
     
     def insertBasenItems(self, pos: int, basen: list[Base]):
         self._baseitems[pos:pos] = [BaseItem(self, base) for base in basen]
-        self.updateVersteckt()
         self.setBasenPos()
-        self._linealitem.erzeugeTicks()
+        self.updateVersteckt(pos)
+        self._linealitem.updateTicks()
 
     def removeBasenItems(self, pos: int, basen: list[Base]):
         anzahl = len(basen)
         for baseitem in self._baseitems[pos:pos+anzahl]:
             baseitem.setParentItem(None)
         self._baseitems[pos:pos+anzahl] = []
-        self.updateVersteckt()
         self.setBasenPos()
-        self._linealitem.erzeugeTicks()
+        self.updateVersteckt(pos)
+        self._linealitem.updateTicks()
 
 class SequenznameItem(QGraphicsRectItem):
 
@@ -246,7 +253,7 @@ class LinealItem(QGraphicsRectItem):
         self._model = model
         self._viewmodel = viewmodel
         self._ticks: list[LinealtickItem] = []
-
+        self._rotelinien: list[RotelinieItem] = []
         self.viewmodel.spaltenzahlChanged.connect(self.setTicksPos)
         self.viewmodel.umbruchChanged.connect(self.setTicksPos)
         self.viewmodel.zeigeverstecktChanged.connect(self.setTicksPos)
@@ -281,6 +288,8 @@ class LinealItem(QGraphicsRectItem):
         self.setTicksPos()
 
     def setTicksPos(self):
+        deleteItemArray(self._rotelinien)
+        roteLineSchonDa = False
         col = 0
         for tickidx in range(len(self._ticks)):
             tickitem = self._ticks[tickidx]
@@ -289,12 +298,37 @@ class LinealItem(QGraphicsRectItem):
 
             aktuellversteckt = tickitem.versteckt
             if aktuellversteckt and not self.viewmodel.zeigeversteckt:
+                if not roteLineSchonDa:
+                    self._rotelinien.append(RotelinieItem(self, x, y, 2*basenlaenge))
+                    roteLineSchonDa = True
                 tickitem.setVisible(False)
                 continue
             else:
                 tickitem.setVisible(True)
-
+            roteLineSchonDa = False
             col += 1
+
+    def updateTicks(self):
+        actlen = len(self._ticks)
+        maxlen = self.model.maxlen
+        if actlen == maxlen:
+            return
+        elif actlen < maxlen:
+            # weitere Ticks werden benötigt
+            self.insertTicks(maxlen, maxlen - actlen)
+        else:
+            # zu viele Ticks vorhanden
+            self.popTicks(actlen - maxlen)
+        
+    def insertTicks(self, pos: int, anzahl: int):
+        for _ in range(anzahl):
+            self._ticks.append(LinealtickItem(self, pos+anzahl-1))
+        self.setTicksPos()
+
+    def popTicks(self, anzahl: int):
+        for _ in range(anzahl):
+            item = self._ticks.pop()
+            item.setParentItem(None)
 
 
 class LinealtickItem(QGraphicsRectItem):
@@ -355,8 +389,9 @@ class LinealtickItem(QGraphicsRectItem):
 
 class RotelinieItem(QGraphicsLineItem):
 
-    def __init__(self, parent: LinealItem, x: int, y: int, length: int):
-        super().__init__(x, y, x, y+length, parent)
+    def __init__(self, parent: LinealItem, x, y, length: int):
+        super().__init__(parent)
+        self.setLine(x,y,x,y+length)
         pen = QPen(QColor('red'))
         pen.setWidth(3)
         self.setPen(pen)
