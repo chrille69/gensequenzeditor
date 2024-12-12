@@ -6,6 +6,12 @@ from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsTex
 from bioinformatik import Base, Sequenz, Markierung
 from sequenzenmodel import SequenzenModel, SequenzenViewModel
 
+import logging
+from logdecorator import logme
+logging.basicConfig()
+log = logging.getLogger(__name__)
+#log.setLevel(logging.DEBUG)
+
 basefont = QFont()
 basefont.setFamily('Courier')
 basefont.setBold(QFont.Bold)
@@ -22,6 +28,7 @@ penhighlight = QColor('red')
 sequenznamewidth = 200
 umbruchgap = 2.5
 rahmendicke = 20
+
 
 def xyFromColSeqidx(col, seqidx, spaltenzahl, lenseq, umbruch):
     if umbruch:
@@ -46,7 +53,6 @@ class SequenzItem(QGraphicsRectItem):
         self._model = model
         self._viewmodel = viewmodel
         self._linealitem = linealitem
-        self._seqidx = self.model.sequenzen.index(self.sequenz)
         self._baseitems: list[BaseItem] = []
         self._nameitems: list[SequenznameItem] = []
         self._rotelinien: list[RotelinieItem] = []
@@ -82,26 +88,27 @@ class SequenzItem(QGraphicsRectItem):
     def versteckeBasen(self, idxlist: list[int]):
         for index in idxlist:
             self._baseitems[index].versteckt = True
-        self.setBasenPos()
+        self.setBoxPos()
 
     def enttarneBasen(self, idxlist: list[int]):
         for index in idxlist:
             self._baseitems[index].versteckt = False
-        self.setBasenPos()
+        self.setBoxPos()
 
     def umbrechen(self, *arg):
         self.erzeugeNamen()
-        self.setBasenPos()
+        self.setBoxPos()
 
     def erzeugeNamen(self):
         deleteItemArray(self._nameitems)
 
+        seqidx = self.model.sequenzen.index(self.sequenz)
         colanzahl = len(self.sequenz.basen) - len(self.model.versteckt)
         anzahl = 1
         if self.viewmodel.umbruch:
             anzahl = int(colanzahl / self.viewmodel.spaltenzahl) + 1
         for idx in range(anzahl):
-            x, y = xyFromColSeqidx(idx*self.viewmodel.spaltenzahl, self.seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
+            x, y = xyFromColSeqidx(idx*self.viewmodel.spaltenzahl, seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
             self._nameitems.append(SequenznameItem(self, 0, y, self.sequenz))
 
     def erzeugeBasen(self):
@@ -109,18 +116,20 @@ class SequenzItem(QGraphicsRectItem):
 
         for base in self.sequenz.basen:
             self._baseitems.append(BaseItem(self, base))
-        self.setBasenPos()
 
-    def setBasenPos(self):
+    @logme(log.debug)
+    def setBoxPos(self):
+        self.erzeugeNamen()
         deleteItemArray(self._rotelinien)
 
+        seqidx = self.model.sequenzen.index(self.sequenz)
         roteLinieSchonDa = False
         col = 0
         for idx, baseitem in enumerate(self._baseitems):
             # Weil einige Basen versteckt sein können, ist die Spalte col
             # nicht mit dem Basenindex basidx identisch.
 
-            x, y = xyFromColSeqidx(col, self.seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
+            x, y = xyFromColSeqidx(col, seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
             baseitem.setPos(x, y)
 
             # Hier wird entschieden, ob das Item versteckt werden soll.
@@ -142,7 +151,7 @@ class SequenzItem(QGraphicsRectItem):
     
     def insertBasenItems(self, pos: int, basen: list[Base]):
         self._baseitems[pos:pos] = [BaseItem(self, base) for base in basen]
-        self.setBasenPos()
+        self.setBoxPos()
         self.updateVersteckt(pos)
         self._linealitem.updateTicks()
 
@@ -151,7 +160,7 @@ class SequenzItem(QGraphicsRectItem):
         for baseitem in self._baseitems[pos:pos+anzahl]:
             baseitem.setParentItem(None)
         self._baseitems[pos:pos+anzahl] = []
-        self.setBasenPos()
+        self.setBoxPos()
         self.updateVersteckt(pos)
         self._linealitem.updateTicks()
 
@@ -254,13 +263,11 @@ class LinealItem(QGraphicsRectItem):
         self._viewmodel = viewmodel
         self._ticks: list[LinealtickItem] = []
         self._rotelinien: list[RotelinieItem] = []
-        self.viewmodel.spaltenzahlChanged.connect(self.setTicksPos)
-        self.viewmodel.umbruchChanged.connect(self.setTicksPos)
-        self.viewmodel.zeigeverstecktChanged.connect(self.setTicksPos)
+        self.viewmodel.spaltenzahlChanged.connect(self.setBoxPos)
+        self.viewmodel.umbruchChanged.connect(self.setBoxPos)
+        self.viewmodel.zeigeverstecktChanged.connect(self.setBoxPos)
         self.model.verstecktAdded.connect(self.versteckeTicks)
         self.model.verstecktRemoved.connect(self.enttarneTicks)
-
-        self.erzeugeTicks()
 
     @property
     def model(self):
@@ -275,19 +282,25 @@ class LinealItem(QGraphicsRectItem):
 
         for idx in range(self.model.maxlen):
             self._ticks.append(LinealtickItem(self, idx))
-        self.setTicksPos()
         
     def versteckeTicks(self, idxlist: list[int]):
         for index in idxlist:
             self._ticks[index].versteckt = True
-        self.setTicksPos()
+        self.setBoxPos()
 
     def enttarneTicks(self, idxlist: list[int]):
         for index in idxlist:
             self._ticks[index].versteckt = False
-        self.setTicksPos()
+        self.setBoxPos()
 
-    def setTicksPos(self):
+    def setBoxPos(self):
+        if not self.model.sequenzen:
+            deleteItemArray(self._ticks)
+            return
+
+        if self.model.sequenzen and not self._ticks:
+            self.erzeugeTicks()
+        
         deleteItemArray(self._rotelinien)
         roteLineSchonDa = False
         col = 0
@@ -321,9 +334,10 @@ class LinealItem(QGraphicsRectItem):
             self.popTicks(actlen - maxlen)
         
     def insertTicks(self, pos: int, anzahl: int):
-        for _ in range(anzahl):
-            self._ticks.append(LinealtickItem(self, pos+anzahl-1))
-        self.setTicksPos()
+        gesamt = len(self._ticks)
+        for idx in range(anzahl):
+            self._ticks.append(LinealtickItem(self, gesamt+idx))
+        self.setBoxPos()
 
     def popTicks(self, anzahl: int):
         for _ in range(anzahl):

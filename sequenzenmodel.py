@@ -52,7 +52,9 @@ class SequenzenViewModel(QObject):
 
 class SequenzenModel(QObject):
 
-    sequenzenChanged = Signal()
+    sequenzenRenewed = Signal()
+    sequenzenAdded = Signal(list)
+    sequenzenRemoved = Signal(list)
     markierungenChanged = Signal()
     verstecktAdded = Signal(list)
     verstecktRemoved = Signal(list)
@@ -88,17 +90,20 @@ class SequenzenModel(QObject):
         self._sequenzen = sequenzen or []
         self._markierungen = markierungen or []
         self._versteckt = versteckt or []
-        self.sequenzenChanged.emit()
+        self.sequenzenRenewed.emit()
         self.markierungenChanged.emit()
 
-    def addSequenzen(self, seqarr: list[Sequenz]):
-        self._sequenzen += seqarr
-        self.sequenzenChanged.emit()
+    def addSequenzen(self, sequenzen: list[Sequenz]):
+        self._sequenzen += sequenzen
+        self.sequenzenAdded.emit(sequenzen)
 
     def removeSequenzen(self, sequenzen: list[Sequenz]):
         for sequenz in sequenzen:
-            self._sequenzen.remove(sequenz)
-        self.sequenzenChanged.emit()
+            try:
+                self._sequenzen.remove(sequenz)
+            except ValueError:
+                pass
+        self.sequenzenRemoved.emit(sequenzen)
 
     def addMarkierungen(self, markarr: list[Markierung]):
         self._markierungen += markarr
