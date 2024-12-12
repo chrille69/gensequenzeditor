@@ -62,6 +62,21 @@ class AminosaeureSequenzCommand(QUndoCommand):
         self.sequenz.basen = self.basenalt
 
 
+class RenewSequenzBasenCommand(QUndoCommand):
+
+    def __init__(self, sequenz: Sequenz, basentxt: str):
+        super(RenewSequenzBasenCommand, self).__init__('Basen erneuert: '+sequenz.name)
+        self.sequenz = sequenz
+        self.basenalt = sequenz.basen
+        self.basenneu = sequenz.createBasenFromString(basentxt)
+
+    def redo(self):
+        self.sequenz.basen = self.basenneu
+
+    def undo(self):
+        self.sequenz.basen = self.basenalt
+
+
 class InsertLeerBaseCommand(QUndoCommand):
 
     def __init__(self, base: Base, anzahl: int):

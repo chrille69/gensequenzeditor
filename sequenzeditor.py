@@ -19,7 +19,8 @@ from dialoge import NeueSequenzDialog, BaseDialog, SequenzDialog, LinealDialog
 from commands import (
     RemoveMarkierungCommand, changeColorMarkierungCommand, changeBeschreibungMarkierungCommand, AddMarkierungCommand,
     RenameSequenzCommand, AminosaeureSequenzCommand, RemoveSequenzenCommand, AddSequenzenCommand,
-    InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand, VerstecktCommand, EnttarnenCommand, MarkiereBasenCommand
+    InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand, VerstecktCommand, EnttarnenCommand, MarkiereBasenCommand,
+    RenewSequenzBasenCommand
 )
 
 import resources
@@ -225,7 +226,8 @@ class SequenzEditor(QMainWindow):
                 if line[:1] == '>':
                     if text:
                         seq = Sequenz(name)
-                        seq.importBasenString(text)
+                        basen = seq.createBasenFromString(text)
+                        seq.basen = basen
                         seqarr.append(seq)
                         text = ''
                         name = 'Unbekannt'
@@ -233,7 +235,8 @@ class SequenzEditor(QMainWindow):
                     continue
                 text += line
             seq = Sequenz(name)
-            seq.importBasenString(text)
+            basen = seq.createBasenFromString(text)
+            seq.basen = basen
             seqarr.append(seq)
             self._undoStack.push(AddSequenzenCommand(self._sequenzmodel, seqarr))
         except Exception as e:
@@ -310,6 +313,10 @@ class SequenzEditor(QMainWindow):
         self._undoStack.push(AminosaeureSequenzCommand(sequenz))
         self._ungespeichert = True
 
+    def sequenz_basen_ersetzen(self, sequenz: Sequenz, basentxt: str):
+        self._undoStack.push(RenewSequenzBasenCommand(sequenz, basentxt))
+        self._ungespeichert = True
+
     def sequenz_entfernen(self, sequenz: Sequenz):
         self._undoStack.push(RemoveSequenzenCommand(self.sequenzmodel(), sequenz))
         self._ungespeichert = True
@@ -363,6 +370,7 @@ class SequenzEditor(QMainWindow):
         dlg = SequenzDialog(self, sequenz)
         dlg.sequenzUmbenennen.connect(self.sequenz_umbenennen)
         dlg.sequenzEntfernen.connect(self.sequenz_entfernen)
+        dlg.basenErsetzen.connect(self.sequenz_basen_ersetzen)
         dlg.sequenzInAmino.connect(self.sequenz_in_aminosaeure)
         dlg.exec()
 

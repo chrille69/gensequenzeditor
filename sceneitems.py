@@ -62,7 +62,7 @@ class SequenzItem(QGraphicsRectItem):
         self.viewmodel.zeigeverstecktChanged.connect(self.umbrechen)
         self.model.verstecktAdded.connect(self.versteckeBasen)
         self.model.verstecktRemoved.connect(self.enttarneBasen)
-        self.sequenz.basenRenewed.connect(self.erzeugeBasen)
+        self.sequenz.basenRenewed.connect(self.renewBasen)
         self.sequenz.basenInserted.connect(self.insertBasenItems)
         self.sequenz.basenRemoved.connect(self.removeBasenItems)
 
@@ -87,12 +87,18 @@ class SequenzItem(QGraphicsRectItem):
 
     def versteckeBasen(self, idxlist: list[int]):
         for index in idxlist:
-            self._baseitems[index].versteckt = True
+            try:
+                self._baseitems[index].versteckt = True
+            except IndexError:
+                pass
         self.setBoxPos()
 
     def enttarneBasen(self, idxlist: list[int]):
         for index in idxlist:
-            self._baseitems[index].versteckt = False
+            try:
+                self._baseitems[index].versteckt = False
+            except IndexError:
+                pass
         self.setBoxPos()
 
     def umbrechen(self, *arg):
@@ -162,6 +168,13 @@ class SequenzItem(QGraphicsRectItem):
         self._baseitems[pos:pos+anzahl] = []
         self.setBoxPos()
         self.updateVersteckt(pos)
+        self._linealitem.updateTicks()
+
+    def renewBasen(self):
+        deleteItemArray(self._baseitems)
+        self.erzeugeBasen()
+        self.setBoxPos()
+        self.updateVersteckt(0)
         self._linealitem.updateTicks()
 
 class SequenznameItem(QGraphicsRectItem):

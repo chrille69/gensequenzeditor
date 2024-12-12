@@ -83,7 +83,7 @@ class BaseDialog(QDialog):
 
     def leerclick(self):
         self.baseLeerHinzu.emit(self._base, self._sb_leeranzahl.value())
-        self.close()
+        self.destroy()
 
     def markierselect(self):
         text = self._cb_markierbasen.currentText()
@@ -93,24 +93,25 @@ class BaseDialog(QDialog):
                 markierung = m
                 break
         self.baseMarkieren.emit(self._base, self._sb_markieranzahl.value(), markierung)
-        self.close()
+        self.destroy()
 
     def entferneclick(self):
         anzahl = self._sb_entferneanzahl.value()
         if anzahl > 0:
             self.baseEntfernen.emit(self._base, anzahl)
-        self.close()
+        self.destroy()
 
     def insertclick(self):
         seqtext = self._le_inserttext.text()
         self.baseSequenzHinzu.emit(self._base, seqtext)
-        self.close()
+        self.destroy()
 
 
 class SequenzDialog(QDialog):
 
     sequenzEntfernen = Signal(Sequenz)
     sequenzUmbenennen = Signal(Sequenz, str)
+    basenErsetzen = Signal(Sequenz,str)
     sequenzInAmino = Signal(Sequenz)
 
     def __init__(self, parent, sequenz: Sequenz):
@@ -120,9 +121,11 @@ class SequenzDialog(QDialog):
         self.setLayout(vbox)
         gb_umbenennen = QGroupBox('Sequenz umbenennen',self)
         gb_animo = QGroupBox('Sequenz in Aminosäure umwandeln',self)
+        gb_basenstr = QGroupBox('Basen bearbeiten',self)
         gb_entferne = QGroupBox('Sequenz entfernen',self)
         vbox.addWidget(gb_umbenennen)
         vbox.addWidget(gb_animo)
+        vbox.addWidget(gb_basenstr)
         vbox.addWidget(gb_entferne)
 
         hbox_umbenennen = QHBoxLayout()
@@ -140,6 +143,14 @@ class SequenzDialog(QDialog):
         hbox_amino.addWidget(btn_amino)
         btn_amino.clicked.connect(self.aminosaeure)
 
+        hbox_basentext = QVBoxLayout()
+        gb_basenstr.setLayout(hbox_basentext)
+        self._te_sequenztext = QPlainTextEdit(sequenz.basenstr)
+        btn_basenstr = QPushButton('Basen ersetzen')
+        hbox_basentext.addWidget(self._te_sequenztext)
+        hbox_basentext.addWidget(btn_basenstr)
+        btn_basenstr.clicked.connect(self.basen_ersetzen)
+
         hbox_entferne = QHBoxLayout()
         gb_entferne.setLayout(hbox_entferne)
         btn_entferne = QPushButton('Entfernen')
@@ -150,15 +161,19 @@ class SequenzDialog(QDialog):
 
     def umbenennenclick(self):
         self.sequenzUmbenennen.emit(self._sequenz, self._in_sequenzname.text())
-        self.close()
+        self.destroy()
 
     def aminosaeure(self):
         self.sequenzInAmino.emit(self._sequenz)
-        self.close()
+        self.destroy()
+
+    def basen_ersetzen(self):
+        self.basenErsetzen.emit(self._sequenz, self._te_sequenztext.toPlainText())
+        self.destroy()
 
     def entferne(self):
         self.sequenzEntfernen.emit(self._sequenz)
-        self.close()
+        self.destroy()
 
 
 class NeueSequenzDialog(QDialog):
@@ -183,9 +198,10 @@ class NeueSequenzDialog(QDialog):
         name = self._le_name.text()
         text = self._te_sequenztext.document().toRawText()
         sequenz = Sequenz(name)
-        sequenz.importBasenString(text)
+        basen = sequenz.createBasenFromString(text)
+        sequenz.basen = basen
         self.sequenzHinzu.emit(sequenz)
-        self.close()
+        self.destroy()
 
 
 class LinealDialog(QDialog):
@@ -228,9 +244,9 @@ class LinealDialog(QDialog):
 
     def verstecken(self):
         self.basenVerstecken.emit(list(range(self.column, self.column+self._sb_verstecken.value())))
-        self.close()
+        self.destroy()
 
     def enttarnen(self):
         self.basenEnttarnen.emit(list(range(self.column, self.column+self._sb_enttarnen.value())))
-        self.close()
+        self.destroy()
 

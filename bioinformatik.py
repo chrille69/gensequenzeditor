@@ -9,7 +9,7 @@ class Sequenz(QObject):
 
     name: Name der Sequenz
 
-    Die Basen werden entweder über einen Textstring mit importBasenString oder
+    Die Basen werden entweder über einen Textstring mit createBasenFromString oder
     über ein Array mit importBasenArrayOfDict importiert. Das Array besteht aus Dicts
     mit den Attributen char für den Buchstaben und background für die
     Hintergrundfarbe (default weiß).
@@ -25,13 +25,33 @@ class Sequenz(QObject):
         self._name = _name
         self._basen = _basen or []
 
+    @property
+    def basen(self) -> list['Base']:
+        return self._basen
+
+    @basen.setter
+    def basen(self, basen: list['Base']):
+        self._basen = basen
+        self.basenRenewed.emit()
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+        self.nameChanged.emit()
+
+    @property
+    def basenstr(self):
+        txt = ''
+        for base in self.basen:
+            txt += base.char
+        return txt
+    
     def importBasenArrayOfDict(self, array):
         self.basen = [Base(self, **baseobj) for baseobj in array]
-
-    def importBasenString(self, text: str):
-        pattern = re.compile(r'\s+')
-        text = re.sub(pattern, '', text).upper()
-        self.basen = [Base(self, char) for char in text]
 
     def createBasenFromString(self, text: str) -> list['Base']:
         pattern = re.compile(r'\s+')
@@ -59,24 +79,6 @@ class Sequenz(QObject):
         self._basen[pos:pos+anzahl] = []
         self.basenRemoved.emit(pos, muell)
         return muell
-
-    @property
-    def basen(self) -> list['Base']:
-        return self._basen
-
-    @basen.setter
-    def basen(self, basen: list['Base']):
-        self._basen = basen
-        self.basenRenewed.emit()
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value
-        self.nameChanged.emit()
 
     def __str__(self) -> str:
         return 'Sequenz'+str(self.__hash__())
