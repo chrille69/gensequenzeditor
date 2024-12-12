@@ -32,10 +32,10 @@ rahmendicke = 20
 
 def xyFromColSeqidx(col, seqidx, spaltenzahl, lenseq, umbruch):
     if umbruch:
-        x = basenlaenge * (col % spaltenzahl) + sequenznamewidth + basenlaenge
+        x = basenlaenge * (col % spaltenzahl) + sequenznamewidth + rahmendicke
         y = basenlaenge * (int(col / spaltenzahl) * (lenseq + umbruchgap)+ seqidx)
     else:
-        x = basenlaenge * col + sequenznamewidth + basenlaenge
+        x = basenlaenge * col + sequenznamewidth + rahmendicke
         y = basenlaenge * seqidx
     return x, y
 
@@ -451,7 +451,7 @@ class MarkierungItem(QGraphicsRectItem):
 
         rect = self.sceneBoundingRect()
         textrect = self.nameItem.boundingRect()
-        return rect.x() + rect.width() + basenlaenge + textrect.width() - sequenznamewidth
+        return rect.x()+rect.width()+textrect.width() - sequenznamewidth
     
     def setX(self, nosignal: bool = False):
         "Setzt auf der Grundlage des Vorgängers die x-Position."
