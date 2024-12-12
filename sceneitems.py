@@ -130,8 +130,12 @@ class SequenzItem(QGraphicsRectItem):
 
             col += 1
 
+    def updateVersteckt():
+        pass
+    
     def insertBasenItems(self, pos: int, basen: list[Base]):
         self._baseitems[pos:pos] = [BaseItem(self, base) for base in basen]
+        self.updateVersteckt()
         self.setBasenPos()
         self._linealitem.erzeugeTicks()
 
@@ -140,6 +144,7 @@ class SequenzItem(QGraphicsRectItem):
         for baseitem in self._baseitems[pos:pos+anzahl]:
             baseitem.setParentItem(None)
         self._baseitems[pos:pos+anzahl] = []
+        self.updateVersteckt()
         self.setBasenPos()
         self._linealitem.erzeugeTicks()
 
