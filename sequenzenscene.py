@@ -92,12 +92,16 @@ class SequenzenScene(QGraphicsScene):
         for sequenz in sequenzen:
             SequenzItem(self.sequenzenItems, sequenz, self.model, self.viewmodel, self.linealitem)
         self.updateBoxPos()
+        if self.model.sequenzen:
+            self.keineSequenzBemerkung.setVisible(False)
     
     def sequenzenRemove(self, sequenzen: list[Sequenz]):
         for item in self.sequenzenItems.childItems():
             if type(item) == SequenzItem and item.sequenz in sequenzen:
                 item.setParentItem(None)
         self.updateBoxPos()
+        if not self.model.sequenzen:
+            self.keineSequenzBemerkung.setVisible(True)
             
     def markierungenZeichnen(self):
         while self.vorgängerMarkierungItem:
