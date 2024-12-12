@@ -83,7 +83,7 @@ class BaseDialog(QDialog):
 
     def leerclick(self):
         self.baseLeerHinzu.emit(self._base, self._sb_leeranzahl.value())
-        self.destroy()
+        self.close()
 
     def markierselect(self):
         text = self._cb_markierbasen.currentText()
@@ -93,18 +93,18 @@ class BaseDialog(QDialog):
                 markierung = m
                 break
         self.baseMarkieren.emit(self._base, self._sb_markieranzahl.value(), markierung)
-        self.destroy()
+        self.close()
 
     def entferneclick(self):
         anzahl = self._sb_entferneanzahl.value()
         if anzahl > 0:
             self.baseEntfernen.emit(self._base, anzahl)
-        self.destroy()
+        self.close()
 
     def insertclick(self):
         seqtext = self._le_inserttext.text()
         self.baseSequenzHinzu.emit(self._base, seqtext)
-        self.destroy()
+        self.close()
 
 
 class SequenzDialog(QDialog):
@@ -161,19 +161,19 @@ class SequenzDialog(QDialog):
 
     def umbenennenclick(self):
         self.sequenzUmbenennen.emit(self._sequenz, self._in_sequenzname.text())
-        self.destroy()
+        self.close()
 
     def aminosaeure(self):
         self.sequenzInAmino.emit(self._sequenz)
-        self.destroy()
+        self.close()
 
     def basen_ersetzen(self):
         self.basenErsetzen.emit(self._sequenz, self._te_sequenztext.toPlainText())
-        self.destroy()
+        self.close()
 
     def entferne(self):
         self.sequenzEntfernen.emit(self._sequenz)
-        self.destroy()
+        self.close()
 
 
 class NeueSequenzDialog(QDialog):
@@ -201,7 +201,7 @@ class NeueSequenzDialog(QDialog):
         basen = sequenz.createBasenFromString(text)
         sequenz.basen = basen
         self.sequenzHinzu.emit(sequenz)
-        self.destroy()
+        self.close()
 
 
 class LinealDialog(QDialog):
@@ -244,9 +244,9 @@ class LinealDialog(QDialog):
 
     def verstecken(self):
         self.basenVerstecken.emit(list(range(self.column, self.column+self._sb_verstecken.value())))
-        self.destroy()
+        self.close()
 
     def enttarnen(self):
         self.basenEnttarnen.emit(list(range(self.column, self.column+self._sb_enttarnen.value())))
-        self.destroy()
+        self.close()
 
