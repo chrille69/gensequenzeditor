@@ -23,6 +23,7 @@ from commands import (
     RenewSequenzBasenCommand
 )
 
+from logdecorator import logme
 import resources
 
 
@@ -32,7 +33,8 @@ import resources
 # Falls sich Resourcen geändert haben:
 # pyside6-rcc resources.qrc -o resources.py
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+#logging.getLogger().setLevel(logging.WARNING)
 
 padding={'padx': 6, 'pady': 6}
 
@@ -46,14 +48,14 @@ class SequenzEditor(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self._main = QWidget(self)
-        self._mainlayout = QHBoxLayout()
-        self._main.setLayout(self._mainlayout)
+        main = QWidget(self)
+        mainlayout = QHBoxLayout()
+        main.setLayout(mainlayout)
         self._sequenzmodel = SequenzenModel(self)
         self._viewmodel = SequenzenViewModel(self)
         self._sequenzscene = SequenzenScene(self, self._sequenzmodel, self._viewmodel)
-        self._grafik = QGraphicsView(self._sequenzscene)
-        self._markierungen = MarkierungenVerwalten(self._sequenzmodel)
+        grafik = QGraphicsView(self._sequenzscene)
+        markierungen = MarkierungenVerwalten(self._sequenzmodel)
         self._ungespeichert = False
         self._undoStack = QUndoStack(self)
 
@@ -122,10 +124,10 @@ class SequenzEditor(QMainWindow):
         tools.addAction(neuesequenzAction)
 
         self.statusBar().addPermanentWidget(QLabel(f'Version {VERSION}'))
-        self._mainlayout.addWidget(self._markierungen)
-        self._mainlayout.addWidget(self._grafik)
-        self._mainlayout.setStretchFactor(self._grafik, 3)
-        self.setCentralWidget(self._main)
+        mainlayout.addWidget(markierungen)
+        mainlayout.addWidget(grafik)
+        mainlayout.setStretchFactor(grafik, 3)
+        self.setCentralWidget(main)
 
         neuAction.triggered.connect(self.fileNew)
         oeffnenAction.triggered.connect(self.fileOpen)
@@ -140,23 +142,28 @@ class SequenzEditor(QMainWindow):
         self._sequenzscene.baseClicked.connect(self.openBaseDialog)
         self._sequenzscene.sequenzNameClicked.connect(self.openSequenzDialog)
         self._sequenzscene.linealClicked.connect(self.openLinealDialog)
-        self._markierungen.markierungHinzu.connect(self.markierung_hinzu)
-        self._markierungen.markierungEntfernen.connect(self.markierung_entfernen)
-        self._markierungen.markierungFarbeSetzen.connect(self.markierung_farbe_setzen)
-        self._markierungen.markierungUmbenennen.connect(self.markierung_name_setzen)
+        markierungen.markierungHinzu.connect(self.markierung_hinzu)
+        markierungen.markierungEntfernen.connect(self.markierung_entfernen)
+        markierungen.markierungFarbeSetzen.connect(self.markierung_farbe_setzen)
+        markierungen.markierungUmbenennen.connect(self.markierung_name_setzen)
 
+    @property
     def sequenzscene(self) -> SequenzenScene:
         return self._sequenzscene
 
+    @property
     def sequenzmodel(self) -> SequenzenModel:
         return self._sequenzmodel
 
+    @property
     def is_umbruch(self) -> bool:
         return self.cb_zeilenumbrechen.isChecked()
 
+    @property
     def is_zeige_versteckt(self) -> bool:
         return self.cb_verstecktanzeigen.isChecked()
-    
+
+    property    
     def spaltenzahl(self) -> int:
         return self.sb_spaltenzahl.value()
     
@@ -178,7 +185,7 @@ class SequenzEditor(QMainWindow):
     def fileNew(self):
         if not self.ungespeichertFortfahren('Neue Datei beginnen'):
             return
-        self._sequenzmodel.setAll()
+        self.sequenzmodel.setAll()
 
     def fileOpen(self):
         if not self.ungespeichertFortfahren('Neue Datei laden'):
@@ -205,7 +212,7 @@ class SequenzEditor(QMainWindow):
                 if b._mtxt:
                     b.markierung = mtxtdict[b._mtxt]
                     del b._mtxt
-        self._sequenzmodel.setAll(sequenzen, markierungen, versteckt)
+        self.sequenzmodel.setAll(sequenzen, markierungen, versteckt)
         self._ungespeichert = ungespeichert
         return
 
@@ -238,7 +245,7 @@ class SequenzEditor(QMainWindow):
             basen = seq.createBasenFromString(text)
             seq.basen = basen
             seqarr.append(seq)
-            self._undoStack.push(AddSequenzenCommand(self._sequenzmodel, seqarr))
+            self._undoStack.push(AddSequenzenCommand(self.sequenzmodel, seqarr))
         except Exception as e:
             self.Fehlermeldung(str(e))
 
@@ -248,9 +255,9 @@ class SequenzEditor(QMainWindow):
             return
         with open(filename, 'w') as file:
             json.dump({
-                'markierungen': self._sequenzmodel.markierungen,
-                'versteckt': self._sequenzmodel.versteckt,
-                'sequenzen': self._sequenzmodel.sequenzen
+                'markierungen': self.sequenzmodel.markierungen,
+                'versteckt': self.sequenzmodel.versteckt,
+                'sequenzen': self.sequenzmodel.sequenzen
             }, file, cls=SequenzenEncoder)
         self._ungespeichert = False
 
@@ -259,7 +266,7 @@ class SequenzEditor(QMainWindow):
         if not filename:
             return
 
-        rect_f = self._sequenzscene.sceneRect()
+        rect_f = self._sequenzscene.itemsBoundingRect()
         img = QImage(QSize(rect_f.width(),rect_f.height()), QImage.Format_RGB888)
         img.fill(QColor('white'))
         p = QPainter(img)
@@ -302,7 +309,7 @@ class SequenzEditor(QMainWindow):
         self._ungespeichert = True
 
     def sequenz_hinzu(self, sequenz: Sequenz):
-        self._undoStack.push(AddSequenzenCommand(self.sequenzmodel(), [sequenz]))
+        self._undoStack.push(AddSequenzenCommand(self.sequenzmodel, [sequenz]))
         self._ungespeichert = True
 
     def sequenz_umbenennen(self, sequenz: Sequenz, name: str):
@@ -318,23 +325,23 @@ class SequenzEditor(QMainWindow):
         self._ungespeichert = True
 
     def sequenz_entfernen(self, sequenz: Sequenz):
-        self._undoStack.push(RemoveSequenzenCommand(self.sequenzmodel(), sequenz))
+        self._undoStack.push(RemoveSequenzenCommand(self.sequenzmodel, sequenz))
         self._ungespeichert = True
 
     def basen_verstecken(self, bereich: range):
-        self._undoStack.push(VerstecktCommand(self.sequenzmodel(), bereich))
+        self._undoStack.push(VerstecktCommand(self.sequenzmodel, bereich))
         self._ungespeichert = True
 
     def basen_enttarnen(self, bereich: range):
-        self._undoStack.push(EnttarnenCommand(self.sequenzmodel(), bereich))
+        self._undoStack.push(EnttarnenCommand(self.sequenzmodel, bereich))
         self._ungespeichert = True
 
     def markierung_hinzu(self, markierung: Markierung):
-        self._undoStack.push(AddMarkierungCommand(self.sequenzmodel(), markierung))
+        self._undoStack.push(AddMarkierungCommand(self.sequenzmodel, markierung))
         self._ungespeichert = True
 
     def markierung_entfernen(self, markierung: Markierung):
-        self._undoStack.push(RemoveMarkierungCommand(self.sequenzmodel(), markierung))
+        self._undoStack.push(RemoveMarkierungCommand(self.sequenzmodel, markierung))
         self._ungespeichert = True
 
     def markierung_farbe_setzen(self, markierung: Markierung, farbe: str):
@@ -404,7 +411,7 @@ class SequenzenDecoder(json.JSONDecoder):
 
 
 if __name__ == "__main__":
-    log.debug('Starte Sequenzeditor')
+    logger.debug('Starte Sequenzeditor')
 
     app = QApplication(sys.argv+['-platform','windows:darkmode=1'])
 

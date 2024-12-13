@@ -21,7 +21,7 @@ class MarkierungenVerwalten(QWidget):
 
     def __init__(self, model: SequenzenModel):
         super().__init__()
-        self.model = model
+        self._model = model
         self.model.markierungenChanged.connect(self.updateMarkierungen)
         vbox = QVBoxLayout()
         self.setLayout(vbox)
@@ -31,28 +31,36 @@ class MarkierungenVerwalten(QWidget):
         btn_plus.clicked.connect(self._markierungAnhaengen)
         btn_plus.setFixedWidth(40)
 
-        self._scroll = QScrollArea()
-        self._frame = QWidget()
-        self._frame.setFixedWidth(250)
-        self._scroll.setWidget(self._frame)
+        scroll = QScrollArea()
+        frame = QWidget()
+        frame.setFixedWidth(250)
+        scroll.setWidget(frame)
         self._vboxframe = QVBoxLayout()
         self._vboxframe.setSizeConstraint(QHBoxLayout.SetMinimumSize)
         self._vboxframe.addStretch(2)
-        self._frame.setLayout(self._vboxframe)
+        frame.setLayout(self._vboxframe)
 
         vbox.addWidget(btn_plus)
-        vbox.addWidget(self._scroll)
+        vbox.addWidget(scroll)
         vbox.addWidget(QLabel('Keine gleichen Namen verwenden!'))
 
+    @property
+    def model(self):
+        return self._model
+    
+    @property
+    def vboxframe(self):
+        return self._vboxframe
+    
     def updateMarkierungen(self):
-        for i in reversed(range(self._vboxframe.count())): 
-            item = self._vboxframe.itemAt(i)
+        for i in reversed(range(self.vboxframe.count())): 
+            item = self.vboxframe.itemAt(i)
             if item.widget():
                 item.widget().deleteLater()
 
         for markierung in self.model.markierungen:
             mw = MarkierungWidget(markierung)
-            self._vboxframe.insertWidget(0, mw, alignment=Qt.AlignTop)
+            self.vboxframe.insertWidget(0, mw, alignment=Qt.AlignTop)
             mw.markierungRemoved.connect(self._markierungEntfernen)
             mw.markierungFarbeChanged.connect(self.markierungFarbeSetzen.emit)
             mw.markierungNameChanged.connect(self.markierungUmbenennen.emit)
@@ -74,7 +82,7 @@ class MarkierungWidget(QWidget):
 
     def __init__(self, markierung: Markierung):
         super().__init__()
-        self.markierung = markierung
+        self._markierung = markierung
         self.markierung.nameChanged.connect(self.setName)
         self.markierung.farbeChanged.connect(self.setFarbe)
         hbox = QHBoxLayout()
@@ -97,20 +105,32 @@ class MarkierungWidget(QWidget):
 
         self.setName()
 
+    @property
+    def markierung(self):
+        return self._markierung
+    
+    @property
+    def beschreibung(self):
+        return self._le_beschreibung
+    
+    @property
+    def farbchooserbutton(self):
+        return self._farbchooserbutton
+    
     def setName(self):
-        self._le_beschreibung.setText(self.markierung.beschreibung)
+        self.beschreibung.setText(self.markierung.beschreibung)
 
     def setFarbe(self):
-        self._farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe};')
+        self.farbchooserbutton.setStyleSheet(f'background-color:{self.markierung.farbe};')
 
     def _beschreibungAktualisieren(self, *args):
-        self.markierungNameChanged.emit(self.markierung, self._le_beschreibung.text())
+        self.markierungNameChanged.emit(self.markierung, self.beschreibung.text())
 
     def _farbauswahl(self):
         farbe = QColorDialog.getColor(self.markierung.farbe)
         if farbe:
             self.markierungFarbeChanged.emit(self.markierung, farbe.name())
-            self._farbchooserbutton.setStyleSheet(f'background-color:{farbe.name()};')
+            self.farbchooserbutton.setStyleSheet(f'background-color:{farbe.name()};')
 
     def _markierungEntfernen(self):
         self.markierungRemoved.emit(self)

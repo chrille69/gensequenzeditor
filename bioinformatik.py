@@ -81,7 +81,7 @@ class Sequenz(QObject):
         return muell
 
     def __str__(self) -> str:
-        return 'Sequenz'+str(self.__hash__())
+        return f'Sequenz[{self.name}]'
 
     def to_json(self) -> str:
         return {'Sequenz': { '_name': self._name, '_basen': self._basen}}
@@ -168,8 +168,8 @@ class Base(QObject):
             farbe = self.markierung.farbe
         return farbe
 
-    def __str__(self) -> str:
-        return 'Base'+str(self.__hash__())
+    def __repr__(self) -> str:
+        return f'Base[{self.char}]'
 
     def to_json(self) -> str:
         basedict = {'_char': self.char}

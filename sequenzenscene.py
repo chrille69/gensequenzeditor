@@ -1,5 +1,5 @@
 
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import Signal, Qt, QRect
 
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsRectItem
 from sceneitems import basenlaenge, sequenznamewidth, rahmendicke, SequenzItem, LinealItem, MarkierungItem
@@ -9,9 +9,7 @@ from sequenzenmodel import SequenzenModel, SequenzenViewModel
 import logging
 from logdecorator import logme
 logging.basicConfig()
-log = logging.getLogger(__name__)
-#log.setLevel(logging.DEBUG)
-
+logger = logging.getLogger(__name__)
 
 class SequenzenScene(QGraphicsScene):
     """
@@ -24,11 +22,7 @@ class SequenzenScene(QGraphicsScene):
     sequenzNameClicked = Signal(Sequenz)
     linealClicked = Signal(int)
     markierungNameClicked = Signal(Markierung)
-
-    fontBase = ('Courier', 14, 'bold')
-    fontLineal = ('Courier', 12, 'bold')
-    abstandMarkierungen = 3
-    markierunglaenge = 50
+    painted = Signal()
 
     def __init__(self, parent, sequenzenmodel: SequenzenModel, sequenzenviewmodel: SequenzenViewModel):
         super().__init__(parent)
@@ -55,6 +49,7 @@ class SequenzenScene(QGraphicsScene):
         self.model.markierungenChanged.connect(self.markierungenZeichnen)
         self.model.verstecktAdded.connect(self.pruefeVersteckt)
         self.model.verstecktRemoved.connect(self.pruefeVersteckt)
+        self.painted.connect(self.recalculateSceneRect)
 
         self.verstecktBemerkung.setVisible(len(self.model.versteckt) != 0)
         self.setBackgroundBrush(Qt.white)
@@ -69,7 +64,15 @@ class SequenzenScene(QGraphicsScene):
     def viewmodel(self):
         return self._viewmodel
 
-    @logme(log.debug)
+    @logme(logger.debug)
+    def updateBoxPos(self):
+        for item in self.sequenzenItems.childItems():
+            item.setBoxPos()
+        self.linealitem.updateTicks()
+        self.linealitem.setBoxPos()
+        self.recalculateSceneRect()
+
+    @logme(logger.debug)
     def sequenzenZeichnen(self):
         for item in self.sequenzenItems.childItems():
             item.setParentItem(None)
@@ -82,27 +85,23 @@ class SequenzenScene(QGraphicsScene):
             self.keineSequenzBemerkung.setVisible(True)
         self.updateBoxPos()
 
-    def updateBoxPos(self):
-        for item in self.sequenzenItems.childItems():
-            item.setBoxPos()
-        self.linealitem.updateTicks()
-        self.linealitem.setBoxPos()
-
+    @logme(logger.debug)
     def sequenzenAdd(self, sequenzen: list[Sequenz]):
+        self.keineSequenzBemerkung.setVisible(False)
         for sequenz in sequenzen:
             SequenzItem(self.sequenzenItems, sequenz, self.model, self.viewmodel, self.linealitem)
         self.updateBoxPos()
-        if self.model.sequenzen:
-            self.keineSequenzBemerkung.setVisible(False)
     
+    @logme(logger.debug)
     def sequenzenRemove(self, sequenzen: list[Sequenz]):
-        for item in self.sequenzenItems.childItems():
-            if type(item) == SequenzItem and item.sequenz in sequenzen:
-                item.setParentItem(None)
-        self.updateBoxPos()
         if not self.model.sequenzen:
             self.keineSequenzBemerkung.setVisible(True)
+        for item in self.sequenzenItems.childItems():
+            if item.sequenz in sequenzen:
+                self.removeItem(item)
+        self.updateBoxPos()
             
+    @logme(logger.debug)
     def markierungenZeichnen(self):
         while self.vorgängerMarkierungItem:
             markierungitem = self.vorgängerMarkierungItem
@@ -111,7 +110,9 @@ class SequenzenScene(QGraphicsScene):
     
         for markierung in self.model.markierungen:
             self.vorgängerMarkierungItem = MarkierungItem(self.markierungenItems, self.vorgängerMarkierungItem, markierung)
+        self.recalculateSceneRect()
 
+    @logme(logger.debug)
     def createkeineSequenzenBemerkung(self):
         """Zeichnet einen Infotext, falls keine Sequenzen vorhanden sind."""
 
@@ -121,6 +122,7 @@ class SequenzenScene(QGraphicsScene):
         textitem.setTextWidth(sequenznamewidth-10)
         return textitem
     
+    @logme(logger.debug)
     def createVerstecktBemerkung(self):
         """Zeichnet einen Infotext, wenn Spalten versteckt sind."""
 
@@ -128,5 +130,13 @@ class SequenzenScene(QGraphicsScene):
         textitem.setDefaultTextColor(Qt.black)
         return textitem
 
-    def pruefeVersteckt(self):
+    @logme(logger.debug)
+    def pruefeVersteckt(self, _):
         self.verstecktBemerkung.setVisible(len(self.model.versteckt) != 0)
+
+    def recalculateSceneRect(self):
+        items = self.items()
+        logger.info("\n"+"\n".join([str(item) for item in items]))
+        logger.info(len(items))
+        logger.info("--------------------------------------\n")
+        self.setSceneRect(self.itemsBoundingRect())

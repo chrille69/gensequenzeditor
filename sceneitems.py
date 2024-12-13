@@ -1,5 +1,5 @@
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPen
 from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsTextItem, QGraphicsSimpleTextItem, QGraphicsItem
 
@@ -8,9 +8,7 @@ from sequenzenmodel import SequenzenModel, SequenzenViewModel
 
 import logging
 from logdecorator import logme
-logging.basicConfig()
-log = logging.getLogger(__name__)
-#log.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 basefont = QFont()
 basefont.setFamily('Courier')
@@ -42,7 +40,8 @@ def xyFromColSeqidx(col, seqidx, spaltenzahl, lenseq, umbruch):
 def deleteItemArray(itemarray: list[QGraphicsItem]):
     while itemarray:
         item = itemarray.pop()
-        item.setParentItem(None)
+        scene = item.scene()
+        scene.removeItem(item)
 
 
 class SequenzItem(QGraphicsRectItem):
@@ -68,6 +67,7 @@ class SequenzItem(QGraphicsRectItem):
 
         self.erzeugeNamen()
         self.erzeugeBasen()
+        self.updateVersteckt(0)
 
     @property
     def model(self):
@@ -83,66 +83,85 @@ class SequenzItem(QGraphicsRectItem):
 
     @property
     def seqidx(self) -> Sequenz:
-        return self._seqidx
+        return self.model.sequenzen.index(self.sequenz)
 
+    @property
+    def linealitem(self):
+        return self._linealitem
+    
+    @property
+    def baseitems(self):
+        return self._baseitems
+
+    @property
+    def nameitems(self):
+        return self._nameitems
+
+    @property
+    def rotelinien(self):
+        return self._rotelinien
+    
+    @logme(logger.debug)
     def versteckeBasen(self, idxlist: list[int]):
         for index in idxlist:
             try:
-                self._baseitems[index].versteckt = True
+                self.baseitems[index].versteckt = True
             except IndexError:
                 pass
         self.setBoxPos()
 
+    @logme(logger.debug)
     def enttarneBasen(self, idxlist: list[int]):
         for index in idxlist:
             try:
-                self._baseitems[index].versteckt = False
+                self.baseitems[index].versteckt = False
             except IndexError:
                 pass
         self.setBoxPos()
 
+    @logme(logger.debug)
     def umbrechen(self, *arg):
         self.erzeugeNamen()
         self.setBoxPos()
 
+    @logme(logger.debug)
     def erzeugeNamen(self):
-        deleteItemArray(self._nameitems)
+        deleteItemArray(self.nameitems)
 
-        seqidx = self.model.sequenzen.index(self.sequenz)
         colanzahl = len(self.sequenz.basen) - len(self.model.versteckt)
         anzahl = 1
         if self.viewmodel.umbruch:
             anzahl = int(colanzahl / self.viewmodel.spaltenzahl) + 1
         for idx in range(anzahl):
-            x, y = xyFromColSeqidx(idx*self.viewmodel.spaltenzahl, seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
-            self._nameitems.append(SequenznameItem(self, 0, y, self.sequenz))
+            x, y = xyFromColSeqidx(idx*self.viewmodel.spaltenzahl, self.seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
+            self.nameitems.append(SequenznameItem(self, 0, y, self.sequenz))
 
+    @logme(logger.debug)
     def erzeugeBasen(self):
-        deleteItemArray(self._baseitems)
+        deleteItemArray(self.baseitems)
 
         for base in self.sequenz.basen:
-            self._baseitems.append(BaseItem(self, base))
+            self.baseitems.append(BaseItem(self, base))
 
-    @logme(log.debug)
+    @logme(logger.debug)
     def setBoxPos(self):
         self.erzeugeNamen()
-        deleteItemArray(self._rotelinien)
+        deleteItemArray(self.rotelinien)
 
-        seqidx = self.model.sequenzen.index(self.sequenz)
         roteLinieSchonDa = False
         col = 0
-        for idx, baseitem in enumerate(self._baseitems):
+        for idx, baseitem in enumerate(self.baseitems):
             # Weil einige Basen versteckt sein können, ist die Spalte col
             # nicht mit dem Basenindex basidx identisch.
 
-            x, y = xyFromColSeqidx(col, seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
+            x, y = xyFromColSeqidx(col, self.seqidx, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
             baseitem.setPos(x, y)
 
             # Hier wird entschieden, ob das Item versteckt werden soll.
             aktuellversteckt = idx in self.model.versteckt
             if aktuellversteckt and not self.viewmodel.zeigeversteckt:
                 if not roteLinieSchonDa:
-                    self._rotelinien.append(RotelinieItem(self, x, y, basenlaenge))
+                    self.rotelinien.append(RotelinieItem(self, x, y, basenlaenge))
                     roteLinieSchonDa = True
                 baseitem.setVisible(False)
                 continue
@@ -150,32 +169,42 @@ class SequenzItem(QGraphicsRectItem):
                 baseitem.setVisible(True)
             roteLinieSchonDa = False
             col += 1
+        logger.info(len(self.childItems()))
+        self.scene().painted.emit()
 
-    def updateVersteckt(self, pos):
-        for idx, baseitem in enumerate(self._baseitems[pos:], pos):
+    @logme(logger.debug)
+    def updateVersteckt(self, pos: int):
+        for idx, baseitem in enumerate(self.baseitems[pos:], pos):
             baseitem.versteckt = idx in self.model.versteckt
-    
+
+    @logme(logger.debug)
     def insertBasenItems(self, pos: int, basen: list[Base]):
-        self._baseitems[pos:pos] = [BaseItem(self, base) for base in basen]
+        self.baseitems[pos:pos] = [BaseItem(self, base) for base in basen]
         self.setBoxPos()
         self.updateVersteckt(pos)
-        self._linealitem.updateTicks()
+        self.linealitem.updateTicks()
 
+    @logme(logger.debug)
     def removeBasenItems(self, pos: int, basen: list[Base]):
         anzahl = len(basen)
-        for baseitem in self._baseitems[pos:pos+anzahl]:
+        for baseitem in self.baseitems[pos:pos+anzahl]:
             baseitem.setParentItem(None)
-        self._baseitems[pos:pos+anzahl] = []
+        self.baseitems[pos:pos+anzahl] = []
         self.setBoxPos()
         self.updateVersteckt(pos)
-        self._linealitem.updateTicks()
+        self.linealitem.updateTicks()
 
+    @logme(logger.debug)
     def renewBasen(self):
-        deleteItemArray(self._baseitems)
+        deleteItemArray(self.baseitems)
         self.erzeugeBasen()
         self.setBoxPos()
         self.updateVersteckt(0)
-        self._linealitem.updateTicks()
+        self.linealitem.updateTicks()
+
+    def __repr__(self):
+        return f'SequenzItem({self.sequenz.name})'
+
 
 class SequenznameItem(QGraphicsRectItem):
 
@@ -189,22 +218,34 @@ class SequenznameItem(QGraphicsRectItem):
         self.gtxt = QGraphicsSimpleTextItem(self)
         self.gtxt.setFont(seqfont)
         self.setName()
-        self._sequenz.nameChanged.connect(self.setName)
+        self.sequenz.nameChanged.connect(self.setName)
         self.setAcceptHoverEvents(True)
+
+    @property
+    def sequenz(self):
+        return self._sequenz
+    
+    @property
+    def x(self):
+        return self._x
+    
+    @property
+    def y(self):
+        return self._y
 
     def setName(self):
         text = self.kurzName()
         self.gtxt.setText(text)
         w = seqfm.horizontalAdvance(text)
-        self.gtxt.setPos(self._x+sequenznamewidth-w, self._y+basenlaenge/2-seqfm.height()/2)
+        self.gtxt.setPos(self.x+sequenznamewidth-w, self.y+basenlaenge/2-seqfm.height()/2)
 
     def kurzName(self) -> str:
-        txt = self._sequenz.name
+        txt = self.sequenz.name
         w = seqfm.horizontalAdvance(txt)
         while w > sequenznamewidth:
             txt = txt[:-1]
             w = seqfm.horizontalAdvance(txt)
-        if self._sequenz.name != txt:
+        if self.sequenz.name != txt:
             txt = txt[:-3]+'...'
         return txt
 
@@ -216,6 +257,9 @@ class SequenznameItem(QGraphicsRectItem):
 
     def mousePressEvent(self, *args):
         self.scene().sequenzNameClicked.emit(self.parentItem().sequenz)
+
+    def __repr__(self):
+        return f'SequenzNameItem[{self.sequenz.name}]'
 
 
 class BaseItem(QGraphicsRectItem):
@@ -266,7 +310,10 @@ class BaseItem(QGraphicsRectItem):
         self.setBrush(self.brush)
 
     def mousePressEvent(self, *args):
-        self.scene().baseClicked.emit(self._base)
+        self.scene().baseClicked.emit(self.base)
+
+    def __repr__(self):
+        return f'BaseItem[{self.base.char}]'
 
 
 class LinealItem(QGraphicsRectItem):
@@ -290,42 +337,50 @@ class LinealItem(QGraphicsRectItem):
     def viewmodel(self):
         return self._viewmodel
 
+    @property
+    def ticks(self):
+        return self._ticks
+
+    @property
+    def rotelinien(self):
+        return self._rotelinien
+
     def erzeugeTicks(self):
-        deleteItemArray(self._ticks)
+        deleteItemArray(self.ticks)
 
         for idx in range(self.model.maxlen):
-            self._ticks.append(LinealtickItem(self, idx))
+            self.ticks.append(LinealtickItem(self, idx))
         
     def versteckeTicks(self, idxlist: list[int]):
         for index in idxlist:
-            self._ticks[index].versteckt = True
+            self.ticks[index].versteckt = True
         self.setBoxPos()
 
     def enttarneTicks(self, idxlist: list[int]):
         for index in idxlist:
-            self._ticks[index].versteckt = False
+            self.ticks[index].versteckt = False
         self.setBoxPos()
 
     def setBoxPos(self):
         if not self.model.sequenzen:
-            deleteItemArray(self._ticks)
+            deleteItemArray(self.ticks)
             return
 
-        if self.model.sequenzen and not self._ticks:
+        if self.model.sequenzen and not self.ticks:
             self.erzeugeTicks()
         
-        deleteItemArray(self._rotelinien)
+        deleteItemArray(self.rotelinien)
         roteLineSchonDa = False
         col = 0
         for tickidx in range(len(self._ticks)):
-            tickitem = self._ticks[tickidx]
+            tickitem = self.ticks[tickidx]
             x, y = xyFromColSeqidx(col, -2, self.viewmodel.spaltenzahl, len(self.model.sequenzen), self.viewmodel.umbruch)
             tickitem.setPos(x, y)
 
             aktuellversteckt = tickitem.versteckt
             if aktuellversteckt and not self.viewmodel.zeigeversteckt:
                 if not roteLineSchonDa:
-                    self._rotelinien.append(RotelinieItem(self, x, y, 2*basenlaenge))
+                    self.rotelinien.append(RotelinieItem(self, x, y, 2*basenlaenge))
                     roteLineSchonDa = True
                 tickitem.setVisible(False)
                 continue
@@ -335,7 +390,7 @@ class LinealItem(QGraphicsRectItem):
             col += 1
 
     def updateTicks(self):
-        actlen = len(self._ticks)
+        actlen = len(self.ticks)
         maxlen = self.model.maxlen
         if actlen == maxlen:
             return
@@ -347,14 +402,14 @@ class LinealItem(QGraphicsRectItem):
             self.popTicks(actlen - maxlen)
         
     def insertTicks(self, pos: int, anzahl: int):
-        gesamt = len(self._ticks)
+        gesamt = len(self.ticks)
         for idx in range(anzahl):
-            self._ticks.append(LinealtickItem(self, gesamt+idx))
+            self.ticks.append(LinealtickItem(self, gesamt+idx))
         self.setBoxPos()
 
     def popTicks(self, anzahl: int):
         for _ in range(anzahl):
-            item = self._ticks.pop()
+            item = self.ticks.pop()
             item.setParentItem(None)
 
 
@@ -429,8 +484,8 @@ class MarkierungItem(QGraphicsRectItem):
 
     def __init__(self, parent, vorgänger: 'MarkierungItem', markierung: Markierung):
         super().__init__(parent)
-        self.markierung = markierung
-        self.vorgänger = vorgänger
+        self._markierung = markierung
+        self._vorgänger = vorgänger
         self.setRect(0, 0, basenlaenge, 20)
         self.setPen(Qt.NoPen)
         self.setFlag(QGraphicsItem.ItemIsMovable, True)
@@ -445,6 +500,14 @@ class MarkierungItem(QGraphicsRectItem):
         self.markierung.nameChanged.connect(self.setName)
         if self.vorgänger:
             self.vorgänger.nameItem.document().contentsChanged.connect(self.setX)
+    
+    @property
+    def markierung(self):
+        return self._markierung
+    
+    @property
+    def vorgänger(self):
+        return self._vorgänger
     
     def sceneRight(self):
         "Gibt den x-Wert der rechten Kante des Items zurück."

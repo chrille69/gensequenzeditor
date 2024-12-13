@@ -18,8 +18,7 @@ class BaseDialog(QDialog):
         super().__init__(parent)
         self.nonebasetext = '- keine -'
         self._base = base
-        self._markierungen = parent.sequenzmodel().markierungen
-        self._auswahltexte = [self.nonebasetext]+[m.beschreibung for m in self._markierungen]
+        self._markierungen = parent.sequenzmodel.markierungen
         vbox = QVBoxLayout(self)
         self.setLayout(vbox)
         gb_leerbasen = QGroupBox('Leerbasen einfügen',self)
@@ -28,7 +27,7 @@ class BaseDialog(QDialog):
         gb_insertbasen = QGroupBox('Basen einfügen',self)
         nummerohne = base.getNummerInSequenzOhneLeer()
         nummermit = base.getIndexInSequenz()+1
-        vbox.addWidget(QLabel(f'Base: {base.char}'))
+        vbox.addWidget(QLabel(f'Base: {self.base.char}'))
         vbox.addWidget(QLabel(f'Basennummer mit Leerstellen: {nummermit}'))
         vbox.addWidget(QLabel(f'Basennummer ohne Leerstellen: {nummerohne}'))
         vbox.addWidget(gb_leerbasen)
@@ -52,8 +51,8 @@ class BaseDialog(QDialog):
         self._sb_markieranzahl = QSpinBox()
         self._sb_markieranzahl.setRange(1,99999)
         self._cb_markierbasen = QComboBox()
-        self._cb_markierbasen.addItems(self._auswahltexte)
-        self._cb_markierbasen.setCurrentIndex(self._auswahltexte.index(self._base.markierung.beschreibung if self._base.markierung else self.nonebasetext))
+        self._cb_markierbasen.addItems(self.auswahltexte)
+        self._cb_markierbasen.setCurrentIndex(self.auswahltexte.index(self.base.markierung.beschreibung if self.base.markierung else self.nonebasetext))
         hbox_markierbasen.addWidget(QLabel('Anzahl'))
         hbox_markierbasen.addWidget(self._sb_markieranzahl)
         hbox_markierbasen.addStretch()
@@ -81,29 +80,41 @@ class BaseDialog(QDialog):
         hbox_insertbasen.addWidget(btn_insertbasen)
         btn_insertbasen.clicked.connect(self.insertclick)
 
+    @property
+    def base(self):
+        return self._base
+    
+    @property
+    def markierungen(self):
+        return self._markierungen
+    
+    @property
+    def auswahltexte(self):
+        return [self.nonebasetext]+[m.beschreibung for m in self.markierungen]
+
     def leerclick(self):
-        self.baseLeerHinzu.emit(self._base, self._sb_leeranzahl.value())
+        self.baseLeerHinzu.emit(self.base, self._sb_leeranzahl.value())
         self.close()
 
     def markierselect(self):
         text = self._cb_markierbasen.currentText()
         markierung = None
-        for m in self._markierungen:
+        for m in self.markierungen:
             if text == m.beschreibung:
                 markierung = m
                 break
-        self.baseMarkieren.emit(self._base, self._sb_markieranzahl.value(), markierung)
+        self.baseMarkieren.emit(self.base, self._sb_markieranzahl.value(), markierung)
         self.close()
 
     def entferneclick(self):
         anzahl = self._sb_entferneanzahl.value()
         if anzahl > 0:
-            self.baseEntfernen.emit(self._base, anzahl)
+            self.baseEntfernen.emit(self.base, anzahl)
         self.close()
 
     def insertclick(self):
         seqtext = self._le_inserttext.text()
-        self.baseSequenzHinzu.emit(self._base, seqtext)
+        self.baseSequenzHinzu.emit(self.base, seqtext)
         self.close()
 
 
@@ -161,21 +172,24 @@ class SequenzDialog(QDialog):
         hbox_entferne.addWidget(btn_entferne)
         btn_entferne.clicked.connect(self.entferne)
 
+    @property
+    def sequenz(self):
+        return self._sequenz
 
     def umbenennenclick(self):
-        self.sequenzUmbenennen.emit(self._sequenz, self._in_sequenzname.text())
+        self.sequenzUmbenennen.emit(self.sequenz, self._in_sequenzname.text())
         self.close()
 
     def aminosaeure(self):
-        self.sequenzInAmino.emit(self._sequenz)
+        self.sequenzInAmino.emit(self.sequenz)
         self.close()
 
     def basen_ersetzen(self):
-        self.basenErsetzen.emit(self._sequenz, self._te_sequenztext.toPlainText())
+        self.basenErsetzen.emit(self.sequenz, self._te_sequenztext.toPlainText())
         self.close()
 
     def entferne(self):
-        self.sequenzEntfernen.emit(self._sequenz)
+        self.sequenzEntfernen.emit(self.sequenz)
         self.close()
 
 
@@ -214,8 +228,8 @@ class LinealDialog(QDialog):
 
     def __init__(self, parent, column: int):
         super().__init__()
-        self.model = parent.sequenzmodel()
-        self.column = column
+        self._model = parent.sequenzmodel
+        self._column = column
         vbox = QVBoxLayout(self)
         self.setLayout(vbox)
         gb_verstecken = QGroupBox('Spalten verstecken',self)
@@ -245,6 +259,14 @@ class LinealDialog(QDialog):
         hbox_enttarnen.addWidget(btn_enttarnen)
         btn_enttarnen.clicked.connect(self.enttarnen)
 
+    @property
+    def model(self):
+        return self._model
+    
+    @property
+    def column(self):
+        return self._column
+    
     def verstecken(self):
         self.basenVerstecken.emit(list(range(self.column, self.column+self._sb_verstecken.value())))
         self.close()
