@@ -42,7 +42,7 @@ class SequenzenScene(QGraphicsScene):
         self.sequenzenRect.setPos(0, 6*basenlaenge)
         self.markierungenItems.setPos(sequenznamewidth+rahmendicke, 2*basenlaenge)
 
-        self.model.sequenzenRenewed.connect(self.sequenzenZeichnen)
+        self.model.sequenzenRenewed.connect(self.ansichtErneuern)
         self.model.sequenzenAdded.connect(self.sequenzenAdd)
         self.model.sequenzenRemoved.connect(self.sequenzenRemove)
         self.model.markierungenChanged.connect(self.markierungenZeichnen)
@@ -62,6 +62,10 @@ class SequenzenScene(QGraphicsScene):
     @property
     def viewmodel(self):
         return self._viewmodel
+
+    def ansichtErneuern(self):
+        self.sequenzenZeichnen()
+        self.pruefeVersteckt(None)
 
     @logme(logger.debug)
     def updateBoxPos(self):
@@ -130,7 +134,7 @@ class SequenzenScene(QGraphicsScene):
         return textitem
 
     @logme(logger.debug)
-    def pruefeVersteckt(self, _):
+    def pruefeVersteckt(self, _ = None):
         self.verstecktBemerkung.setVisible(len(self.model.versteckt) != 0)
 
     def recalculateSceneRect(self):

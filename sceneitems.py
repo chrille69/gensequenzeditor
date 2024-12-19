@@ -353,17 +353,24 @@ class LinealItem(QGraphicsRectItem):
         
     def versteckeTicks(self, idxlist: list[int]):
         for index in idxlist:
-            self.ticks[index].versteckt = True
+            try:
+                self.ticks[index].versteckt = True
+            except IndexError:
+                pass
         self.setBoxPos()
 
     def enttarneTicks(self, idxlist: list[int]):
         for index in idxlist:
-            self.ticks[index].versteckt = False
+            try:
+                self.ticks[index].versteckt = False
+            except IndexError:
+                pass
         self.setBoxPos()
 
     def setBoxPos(self):
         if not self.model.sequenzen:
             deleteItemArray(self.ticks)
+            deleteItemArray(self.rotelinien)
             return
 
         if self.model.sequenzen and not self.ticks:
@@ -407,10 +414,12 @@ class LinealItem(QGraphicsRectItem):
             self.ticks.append(LinealtickItem(self, gesamt+idx))
         self.setBoxPos()
 
+    @logme(logger.info)
     def popTicks(self, anzahl: int):
         for _ in range(anzahl):
             item = self.ticks.pop()
-            item.setParentItem(None)
+            scene = item.scene()
+            scene.removeItem(item)
 
 
 class LinealtickItem(QGraphicsRectItem):
