@@ -219,7 +219,7 @@ class SequenzEditor(QMainWindow):
         return
 
     def importFasta(self):
-        filename = QFileDialog.getOpenFileName(self, "Open Image")[0]
+        filename = QFileDialog.getOpenFileName(self, "FASTA-Datei importieren", filter="FASTA-Dateien (*.fasta);; Alle Dateien (*.*)")[0]
         if not filename:
             return
         with open(filename) as fastafile:
