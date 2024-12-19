@@ -1,7 +1,7 @@
 
 import logging
 from PySide6.QtCore import Signal, QObject
-from bioinformatik import Sequenz, Markierung
+from bioinformatik import Sequenz, Markierung, Base
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +121,11 @@ class SequenzenModel(QObject):
         for col in arr:
             col in self._versteckt and self._versteckt.remove(col)
         self.verstecktRemoved.emit(arr)
+
+    def markierteBasen(self, markierung: Markierung) -> list[Base]:
+        basen = []
+        for sequenz in self.sequenzen:
+            for base in sequenz.basen:
+                if base.markierung == markierung:
+                    basen.append(base)
+        return basen

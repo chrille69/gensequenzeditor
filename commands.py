@@ -154,6 +154,7 @@ class RemoveMarkierungCommand(QUndoCommand):
         super(RemoveMarkierungCommand, self).__init__('Markierung entfernt '+markierung.beschreibung)
         self.model = model
         self.markierung = markierung
+        self.markierteBasen = self.model.markierteBasen(markierung)
 
     def redo(self):
         self.markierung.deleted.emit()
@@ -161,6 +162,8 @@ class RemoveMarkierungCommand(QUndoCommand):
 
     def undo(self):
         self.model.addMarkierungen([self.markierung])
+        for base in self.markierteBasen:
+            base.markierung = self.markierung
 
 
 class AddMarkierungCommand(QUndoCommand):
