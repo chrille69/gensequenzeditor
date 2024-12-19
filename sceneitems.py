@@ -497,7 +497,7 @@ class MarkierungItem(QGraphicsRectItem):
         self._vorgänger = vorgänger
         self.setRect(0, 0, basenlaenge, 20)
         self.setPen(Qt.NoPen)
-        self.setFlag(QGraphicsItem.ItemIsMovable, True)
+        #self.setFlag(QGraphicsItem.ItemIsMovable, True)
         self.nameItem = QGraphicsTextItem(self)
         self.nameItem.setDefaultTextColor(QColor('black'))
         self.nameItem.setFont(seqfont)
