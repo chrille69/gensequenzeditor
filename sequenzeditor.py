@@ -417,8 +417,8 @@ if __name__ == "__main__":
     app = QApplication(sys.argv+['-platform','windows:darkmode=1'])
     parser = ArgumentParser()
     parser.add_argument("file", nargs="?", help="Json-Datei zum laden einer vorher gesicherten Datei.")
-    parser.add_argument("-l", "--loglevel", choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'], default="WARNING")
-    args = parser.parse_args()
+    parser.add_argument("-l", "--loglevel", choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])
+    args = vars(parser.parse_args())
 
     try:
         import qdarktheme # type: ignore
@@ -430,18 +430,18 @@ if __name__ == "__main__":
     d = SequenzEditor()
     d.resize(1000, 600)
     d.show()
-    if args.loglevel:
+    if args['loglevel'] is not None:
         logw = LogWindow()
         logw.show()
         d.closed.connect(logw.close)
-        logging.getLogger().setLevel(args.loglevel)
+        logging.getLogger().setLevel(args['loglevel'])
         logging.getLogger().addHandler(logw.loghandler)
 
     logger.debug('Starte Sequenzeditor')
 
-    if args.file:
+    if args['file'] is not None:
         try:
-            d.importJSONFile(args.file, False)
+            d.importJSONFile(args['file'], False)
         except Exception as e:
             print(str(e))
 
