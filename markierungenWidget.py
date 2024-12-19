@@ -89,7 +89,7 @@ class MarkierungWidget(QWidget):
         hbox = QHBoxLayout()
         self.setLayout(hbox)
         self._le_beschreibung = QLineEdit()
-        self._le_beschreibung.returnPressed.connect(self._beschreibungAktualisieren)
+        self._le_beschreibung.editingFinished.connect(self._beschreibungAktualisieren)
         self._le_beschreibung.setToolTip('Mit Enter bestätigen.')
         hbox.addWidget(self._le_beschreibung)
 
