@@ -431,7 +431,6 @@ class LinealtickItem(QGraphicsRectItem):
         self.brush = Qt.NoBrush
         self.setPen(Qt.NoPen)
         self.setBoxfarbe()
-        self.setZValue(-10)
         nummer = idx+1
         marke = '∙'
         gcharh = 0
@@ -442,6 +441,7 @@ class LinealtickItem(QGraphicsRectItem):
             gnummer.setFont(basefont)
             gnummerw = basefm.horizontalAdvance(str(nummer))
             gnummer.setPos(basenlaenge/2-gnummerw/2, basenlaenge/2-gcharh-4)
+            self.setZValue(10)
         gchar = QGraphicsSimpleTextItem(marke, self)
         gchar.setFont(basefont)
         gcharw = basefm.horizontalAdvance(marke)
@@ -486,7 +486,7 @@ class RotelinieItem(QGraphicsLineItem):
         pen = QPen(QColor('red'))
         pen.setWidth(3)
         self.setPen(pen)
-        self.setZValue(10)
+        self.setZValue(20)
 
 
 class MarkierungItem(QGraphicsRectItem):
