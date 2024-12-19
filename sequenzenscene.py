@@ -7,8 +7,7 @@ from bioinformatik import Sequenz, Markierung, Base
 from sequenzenmodel import SequenzenModel, SequenzenViewModel
 
 import logging
-from logdecorator import logme
-logging.basicConfig()
+from logger import logme
 logger = logging.getLogger(__name__)
 
 class SequenzenScene(QGraphicsScene):

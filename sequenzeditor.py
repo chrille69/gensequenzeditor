@@ -1,8 +1,7 @@
 import sys
-import logging
 import json
 
-from PySide6.QtCore import QSize, QRectF, Qt
+from PySide6.QtCore import QSize, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QAction, QImage, QPainter, QPixmap, QIcon, QUndoStack, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QLabel, QMainWindow, QFileDialog, 
@@ -23,9 +22,11 @@ from commands import (
     RenewSequenzBasenCommand
 )
 
-from logdecorator import logme
+import logging
+from logger import logme, LogWindow
 import resources
 
+logger = logging
 
 # Zum Erzeugen der exe:
 # pyinstaller.exe -F -i resources/oszli-icon.ico -w .\sequenzeditor.py
@@ -33,8 +34,6 @@ import resources
 # Falls sich Resourcen geändert haben:
 # pyside6-rcc resources.qrc -o resources.py
 
-logger = logging.getLogger(__name__)
-#logging.getLogger().setLevel(logging.WARNING)
 
 padding={'padx': 6, 'pady': 6}
 
@@ -45,6 +44,8 @@ class SequenzEditor(QMainWindow):
     Gilt als Controller der ganzen Anwendung.
 
     """
+
+    closed = Signal()
 
     def __init__(self):
         super().__init__()
@@ -163,7 +164,7 @@ class SequenzEditor(QMainWindow):
     def is_zeige_versteckt(self) -> bool:
         return self.cb_verstecktanzeigen.isChecked()
 
-    property    
+    @property    
     def spaltenzahl(self) -> int:
         return self.sb_spaltenzahl.value()
     
@@ -171,6 +172,7 @@ class SequenzEditor(QMainWindow):
         if not self.ungespeichertFortfahren('Editor beenden'):
             event.ignore()
             return
+        self.closed.emit()
         event.accept()
 
     def ungespeichertFortfahren(self, titel: str) -> bool:
@@ -411,9 +413,12 @@ class SequenzenDecoder(json.JSONDecoder):
 
 
 if __name__ == "__main__":
-    logger.debug('Starte Sequenzeditor')
-
+    from argparse import ArgumentParser
     app = QApplication(sys.argv+['-platform','windows:darkmode=1'])
+    parser = ArgumentParser()
+    parser.add_argument("file", nargs="?", help="Json-Datei zum laden einer vorher gesicherten Datei.")
+    parser.add_argument("-l", "--loglevel", choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'], default="WARNING")
+    args = parser.parse_args()
 
     try:
         import qdarktheme # type: ignore
@@ -425,10 +430,18 @@ if __name__ == "__main__":
     d = SequenzEditor()
     d.resize(1000, 600)
     d.show()
-    filenames = sys.argv[1:2]
-    if filenames:
+    if args.loglevel:
+        logw = LogWindow()
+        logw.show()
+        d.closed.connect(logw.close)
+        logging.getLogger().setLevel(args.loglevel)
+        logging.getLogger().addHandler(logw.loghandler)
+
+    logger.debug('Starte Sequenzeditor')
+
+    if args.file:
         try:
-            d.importJSONFile(filenames[0], False)
+            d.importJSONFile(args.file, False)
         except Exception as e:
             print(str(e))
 

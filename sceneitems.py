@@ -1,5 +1,5 @@
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPen
 from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsTextItem, QGraphicsSimpleTextItem, QGraphicsItem
 
@@ -7,7 +7,7 @@ from bioinformatik import Base, Sequenz, Markierung
 from sequenzenmodel import SequenzenModel, SequenzenViewModel
 
 import logging
-from logdecorator import logme
+from logger import logme
 logger = logging.getLogger(__name__)
 
 basefont = QFont()

@@ -3,7 +3,7 @@ import logging
 from PySide6.QtCore import Signal, QObject
 from bioinformatik import Sequenz, Markierung
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class SequenzenViewModel(QObject):
