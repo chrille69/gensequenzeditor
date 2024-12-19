@@ -43,6 +43,7 @@ class MarkierungenVerwalten(QWidget):
         vbox.addWidget(btn_plus)
         vbox.addWidget(scroll)
         vbox.addWidget(QLabel('Keine gleichen Namen verwenden!'))
+        vbox.addWidget(QLabel('Umbenennen mit Enter bestätigen.'))
 
     @property
     def model(self):
