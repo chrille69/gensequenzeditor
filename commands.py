@@ -238,7 +238,7 @@ class EnttarnenCommand(QUndoCommand):
 class SetAllCommand(QUndoCommand):
 
     def __init__(self, model: SequenzenModel, *all: tuple[list[Sequenz], list[Markierung], list[bool]]):
-        super(SetAllCommand, self).__init__('Enttarnen')
+        super(SetAllCommand, self).__init__('Alles ersetzen')
         self.model = model
         self.allneu = all
         self.allalt = self.model.getAllCopy()

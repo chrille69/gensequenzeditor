@@ -19,7 +19,7 @@ from commands import (
     RemoveMarkierungCommand, changeColorMarkierungCommand, changeBeschreibungMarkierungCommand, AddMarkierungCommand,
     RenameSequenzCommand, AminosaeureSequenzCommand, RemoveSequenzenCommand, AddSequenzenCommand,
     InsertLeerBaseCommand, EntferneBaseCommand, InsertBaseCommand, VerstecktCommand, EnttarnenCommand, MarkiereBasenCommand,
-    RenewSequenzBasenCommand
+    RenewSequenzBasenCommand, SetAllCommand
 )
 
 import logging
@@ -187,7 +187,7 @@ class SequenzEditor(QMainWindow):
     def fileNew(self):
         if not self.ungespeichertFortfahren('Neue Datei beginnen'):
             return
-        self.sequenzmodel.setAll()
+        self._undoStack.push(SetAllCommand(self.sequenzmodel, [], [], []))
 
     def fileOpen(self):
         if not self.ungespeichertFortfahren('Neue Datei laden'):
