@@ -16,18 +16,8 @@ def _apply_style(app, additional_qss: str | None, **kargs) -> None:
     from qdarktheme._proxy_style import QDarkThemeStyle
 
     stylesheet = load_stylesheet(**kargs)
-
-    # hc: workaround, weil Tooltip im darkmode manchmal falschen Hintergrund besitzt
-    if darkdetect.theme() == 'Dark':
-        stylesheet += """
-QToolTip {
-    background-color: #2a2b2f;
-}
-"""
-
     if additional_qss is not None:
         stylesheet += additional_qss
-
     app.setStyleSheet(stylesheet)
 
     app.setPalette(
