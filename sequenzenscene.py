@@ -139,7 +139,7 @@ class SequenzenScene(QGraphicsScene):
 
     def recalculateSceneRect(self):
         items = self.items()
-        logger.info("\n"+"\n".join([str(item) for item in items]))
-        logger.info(len(items))
-        logger.info("--------------------------------------\n")
+        #logger.info("\n"+"\n".join([str(item) for item in items]))
+        #logger.info(len(items))
+        #logger.info("--------------------------------------\n")
         self.setSceneRect(self.itemsBoundingRect())

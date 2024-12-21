@@ -1,6 +1,9 @@
 
 import re
 from PySide6.QtCore import QObject, Signal
+import logging
+from logger import logme
+logger = logging.getLogger(__name__)
 
 
 class Sequenz(QObject):
@@ -50,9 +53,11 @@ class Sequenz(QObject):
             txt += base.char
         return txt
     
+    @logme(logger.debug)
     def importBasenArrayOfDict(self, array):
         self.basen = [Base(self, **baseobj) for baseobj in array]
 
+    @logme(logger.debug)
     def createBasenFromString(self, text: str) -> list['Base']:
         pattern = re.compile(r'\s+')
         text = re.sub(pattern, '', text).upper()

@@ -17,12 +17,13 @@ class TextLogHandler(logging.Handler):
     def __init__(self, textedit: QPlainTextEdit):
         super().__init__()
         self._textedit = textedit
-
+        fmt = '%(asctime)s %(message)s'
+        self.setFormatter(logging.Formatter(fmt))
     def emit(self, record):
         self._textedit.appendPlainText(self.format(record))
 
 
-class LogWindow(QWidget):
+class LogWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._textedit = QPlainTextEdit()
