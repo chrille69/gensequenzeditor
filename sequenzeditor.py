@@ -2,7 +2,8 @@ import sys
 import json
 
 from PySide6.QtCore import QSize, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QAction, QImage, QPainter, QPixmap, QIcon, QUndoStack, QKeySequence
+from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6.QtGui import QColor, QAction, QImage, QPainter, QPixmap, QIcon, QUndoStack, QKeySequence, QSurfaceFormat
 from PySide6.QtWidgets import (
     QApplication, QLabel, QMainWindow, QFileDialog, 
     QGraphicsView, QCheckBox, QToolBar, QWidget,
@@ -56,6 +57,11 @@ class SequenzEditor(QMainWindow):
         self._viewmodel = SequenzenViewModel(self)
         self._sequenzscene = SequenzenScene(self, self._sequenzmodel, self._viewmodel)
         grafik = QGraphicsView(self._sequenzscene)
+        #opengl = QOpenGLWidget()
+        #surfaceformat = QSurfaceFormat()
+        #surfaceformat.setSamples(4)
+        #opengl.setFormat(surfaceformat)
+        #grafik.setViewport(opengl)
         markierungen = MarkierungenVerwalten(self._sequenzmodel)
         self._ungespeichert = False
         self._undoStack = QUndoStack(self)
